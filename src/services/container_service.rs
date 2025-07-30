@@ -170,7 +170,7 @@ impl ContainerService {
                     "#,
                 );
 
-                let mut param_index = 1;
+                let param_index = 1;
 
                 if !include_disposed {
                     query.push_str(" AND c.is_disposed = false");
