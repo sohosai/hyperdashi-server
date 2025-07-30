@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) as count FROM loans WHERE item_id = ?1 AND return_date IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "count",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f5a6b4be9c6d2cac7fd5fe646580a2e18e7fa3819f9f72f2e4e5216d0ae976a7"
+}

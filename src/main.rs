@@ -1,10 +1,12 @@
 use axum::{
-    routing::{delete, get, post, put},
+    extract::DefaultBodyLimit,
+    routing::{get, post},
     Router,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{CorsLayer, Any};
+use std::env;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -19,7 +21,14 @@ mod services;
 
 use crate::config::{Config, StorageType};
 use crate::db::DatabasePool;
-use crate::services::{ItemService, LoanService, StorageService, CableColorService};
+use crate::services::{ItemService, LoanService, StorageService, CableColorService, ContainerService};
+
+pub type AppState = (Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>);
+
+#[derive(Clone)]
+pub struct ContainerAppState {
+    pub db: DatabasePool,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -55,6 +64,12 @@ async fn main() -> anyhow::Result<()> {
     let item_service = Arc::new(ItemService::new(db_pool.clone()));
     let loan_service = Arc::new(LoanService::new(db_pool.clone()));
 
+    // Create app states
+    let app_state = (storage.clone(), cable_color_service, item_service.clone(), loan_service);
+    let container_app_state = ContainerAppState {
+        db: db_pool.clone(),
+    };
+
     // Build application routes
     let mut app = Router::new()
         .route("/", get(root))
@@ -74,11 +89,35 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/loans", get(handlers::list_loans).post(handlers::create_loan))
         .route("/api/v1/loans/:id", get(handlers::get_loan))
         .route("/api/v1/loans/:id/return", post(handlers::return_loan))
-        // Image routes
-        .route("/api/v1/images/upload", post(handlers::upload_image))
-        // Add state - combine services
-        .with_state((cable_color_service, item_service, loan_service, storage))
-        .layer(CorsLayer::permissive())
+        // Label routes
+        .route("/api/v1/labels/generate", post(handlers::generate_labels))
+        .route("/api/v1/labels", get(handlers::get_label_info))
+        // Image routes - larger body limit for file uploads
+        .route("/api/v1/images/upload", 
+            post(handlers::upload_image)
+                .layer(DefaultBodyLimit::max(config.storage.max_file_size_mb as usize * 1024 * 1024 * 2)) // 2倍のマージンを設定
+        )
+        // Add state
+        .with_state(app_state)
+        // Container routes with separate state
+        .route("/api/v1/containers", get(handlers::container_list).post(handlers::container_create))
+        .route("/api/v1/containers/:id", get(handlers::container_get).put(handlers::container_update).delete(handlers::container_delete))
+        .route("/api/v1/containers/by-location/:location", get(handlers::containers_by_location))
+        .with_state(container_app_state)
+        // ファイルアップロード用のボディサイズ制限を設定
+        .layer(DefaultBodyLimit::max(config.storage.max_file_size_mb as usize * 1024 * 1024))
+        .layer({
+            let cors_origins = env::var("CORS_ALLOWED_ORIGINS")
+                .unwrap_or_else(|_| "http://localhost:3000,http://127.0.0.1:3000".to_string());
+            
+            info!("CORS allowed origins: {}", cors_origins);
+            
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any)
+                .allow_credentials(false)
+        })
         .layer(TraceLayer::new_for_http());
 
     // Add static file serving for local storage

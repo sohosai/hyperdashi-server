@@ -1,11 +1,11 @@
--- Create cable colors table (PostgreSQL compatible)
-CREATE TABLE IF NOT EXISTS cable_colors (
-    id BIGSERIAL PRIMARY KEY,
+-- Create cable colors table
+CREATE TABLE cable_colors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR(100) NOT NULL UNIQUE,
     hex_code VARCHAR(7),
     description TEXT,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Insert common cable colors

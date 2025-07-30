@@ -28,7 +28,7 @@ fn default_per_page() -> u32 {
 }
 
 pub async fn list_cable_colors(
-    State((cable_color_service, _item_service, _loan_service, _storage_service)): State<(Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>, Arc<StorageService>)>,
+    State((_storage_service, cable_color_service, _item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
     Query(params): Query<CableColorsQuery>,
 ) -> AppResult<Json<CableColorsListResponse>> {
     let response = cable_color_service
@@ -39,7 +39,7 @@ pub async fn list_cable_colors(
 }
 
 pub async fn get_cable_color(
-    State((cable_color_service, _item_service, _loan_service, _storage_service)): State<(Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>, Arc<StorageService>)>,
+    State((_storage_service, cable_color_service, _item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<CableColor>> {
     let cable_color = cable_color_service.get_cable_color(id).await?;
@@ -47,7 +47,7 @@ pub async fn get_cable_color(
 }
 
 pub async fn create_cable_color(
-    State((cable_color_service, _item_service, _loan_service, _storage_service)): State<(Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>, Arc<StorageService>)>,
+    State((_storage_service, cable_color_service, _item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
     Json(req): Json<CreateCableColorRequest>,
 ) -> AppResult<(StatusCode, Json<CableColor>)> {
     req.validate()
@@ -58,7 +58,7 @@ pub async fn create_cable_color(
 }
 
 pub async fn update_cable_color(
-    State((cable_color_service, _item_service, _loan_service, _storage_service)): State<(Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>, Arc<StorageService>)>,
+    State((_storage_service, cable_color_service, _item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
     Path(id): Path<i64>,
     Json(req): Json<UpdateCableColorRequest>,
 ) -> AppResult<Json<CableColor>> {
@@ -70,7 +70,7 @@ pub async fn update_cable_color(
 }
 
 pub async fn delete_cable_color(
-    State((cable_color_service, _item_service, _loan_service, _storage_service)): State<(Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>, Arc<StorageService>)>,
+    State((_storage_service, cable_color_service, _item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
     Path(id): Path<i64>,
 ) -> AppResult<StatusCode> {
     cable_color_service.delete_cable_color(id).await?;

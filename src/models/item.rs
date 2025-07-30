@@ -15,7 +15,9 @@ pub struct Item {
     pub is_depreciation_target: Option<bool>,
     pub connection_names: Option<Vec<String>>,
     pub cable_color_pattern: Option<Vec<String>>,
-    pub storage_locations: Option<Vec<String>>,
+    pub storage_location: Option<String>,
+    pub container_id: Option<String>,
+    pub storage_type: String, // "location" or "container"
     pub is_on_loan: Option<bool>,
     pub qr_code_type: Option<String>,
     pub is_disposed: Option<bool>,
@@ -51,7 +53,11 @@ pub struct CreateItemRequest {
     
     pub cable_color_pattern: Option<Vec<String>>,
     
-    pub storage_locations: Option<Vec<String>>,
+    pub storage_location: Option<String>,
+    
+    pub container_id: Option<String>,
+    
+    pub storage_type: Option<String>, // "location" or "container"
     
     pub qr_code_type: Option<String>,
     
@@ -86,7 +92,11 @@ pub struct UpdateItemRequest {
     
     pub cable_color_pattern: Option<Vec<String>>,
     
-    pub storage_locations: Option<Vec<String>>,
+    pub storage_location: Option<String>,
+    
+    pub container_id: Option<String>,
+    
+    pub storage_type: Option<String>, // "location" or "container"
     
     pub is_on_loan: Option<bool>,
     
@@ -105,3 +115,4 @@ pub struct ItemsListResponse {
     pub page: u32,
     pub per_page: u32,
 }
+

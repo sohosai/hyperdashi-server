@@ -16,6 +16,7 @@ pub enum AppError {
     IoError(std::io::Error),
     ValidationError(String),
     StorageError(String),
+    InternalServer(String),
 }
 
 impl fmt::Display for AppError {
@@ -29,6 +30,7 @@ impl fmt::Display for AppError {
             AppError::IoError(err) => write!(f, "IO error: {}", err),
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             AppError::StorageError(msg) => write!(f, "Storage error: {}", msg),
+            AppError::InternalServer(msg) => write!(f, "Internal server error: {}", msg),
         }
     }
 }
@@ -68,6 +70,13 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Storage error occurred".to_string(),
+                )
+            }
+            AppError::InternalServer(ref msg) => {
+                tracing::error!("Internal server error: {}", msg);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    msg.clone(),
                 )
             }
         };

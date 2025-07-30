@@ -270,6 +270,65 @@
             '';
           };
 
+          # Bootstrap command for initial setup
+          bootstrap = flake-utils.lib.mkApp {
+            drv = pkgs.writeShellScriptBin "hyperdashi-bootstrap" ''
+              echo "🚀 Bootstrapping HyperDashi Server Development Environment"
+              echo ""
+              
+              # Check if we're in a nix develop shell
+              if [ -z "$IN_NIX_SHELL" ]; then
+                echo "📦 Entering development shell..."
+                nix develop -c $0
+                exit $?
+              fi
+              
+              echo "✅ Development environment ready"
+              echo ""
+              
+              # Check if Cargo.lock exists
+              if [ ! -f "Cargo.lock" ]; then
+                echo "🔒 Creating Cargo.lock..."
+                cargo generate-lockfile
+              fi
+              
+              echo "🗄️  Setting up SQLite database..."
+              export DATABASE_URL="sqlite://hyperdashi.db"
+              
+              # Create database file if it doesn't exist
+              touch hyperdashi.db
+              
+              # Check if sqlx-cli is installed
+              if ! command -v sqlx &> /dev/null; then
+                echo "📦 Installing sqlx-cli..."
+                cargo install sqlx-cli --no-default-features --features native-tls,sqlite
+              fi
+              
+              # Run migrations
+              sqlx migrate run
+              
+              echo ""
+              echo "📁 Creating upload directory for local storage..."
+              mkdir -p ./uploads
+              
+              echo ""
+              echo "🔍 Checking dependencies..."
+              cargo check
+              
+              echo ""
+              echo "✨ Bootstrap complete! You can now:"
+              echo ""
+              echo "  1. Run development server:   nix run .#dev"
+              echo "  2. Run tests:               nix run .#test"
+              echo "  3. Or use cargo directly:    cargo run"
+              echo ""
+              echo "Default configuration:"
+              echo "  - Database: SQLite (./hyperdashi.db)"
+              echo "  - Server:   http://localhost:8081"
+              echo "  - Storage:  Local filesystem (./uploads)"
+            '';
+          };
+
           default = self.apps.${system}.hyperdashi-server;
         };
       }

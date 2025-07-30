@@ -13,6 +13,15 @@ pub enum StorageService {
 }
 
 impl StorageService {
+    pub fn get_max_file_size_bytes(&self) -> usize {
+        match self {
+            StorageService::S3(storage) => storage.max_file_size_bytes,
+            StorageService::Local(storage) => storage.max_file_size_bytes,
+        }
+    }
+}
+
+impl StorageService {
     pub async fn new(config: &Config) -> AppResult<Self> {
         match &config.storage.storage_type {
             StorageType::S3 => Ok(StorageService::S3(S3Storage::new(config).await?)),
@@ -47,6 +56,7 @@ pub struct S3Storage {
     client: S3Client,
     bucket_name: String,
     base_url: String,
+    max_file_size_bytes: usize,
 }
 
 impl S3Storage {
@@ -56,18 +66,40 @@ impl S3Storage {
                 config::ConfigError::Message("S3 configuration not found".to_string())
             ))?;
 
-        let aws_config = aws_config::defaults(aws_config::BehaviorVersion::latest()).load().await;
-        let client = S3Client::new(&aws_config);
+        let mut aws_config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest());
         
-        let base_url = format!("https://{}.s3.{}.amazonaws.com", 
-            s3_config.bucket_name, 
-            s3_config.region
-        );
+        // Check if custom endpoint is set (for MinIO)
+        if let Ok(endpoint) = std::env::var("S3_ENDPOINT") {
+            aws_config_builder = aws_config_builder.endpoint_url(endpoint.clone());
+        }
+        
+        let aws_config = aws_config_builder.load().await;
+        
+        let mut s3_config_builder = aws_sdk_s3::config::Builder::from(&aws_config);
+        
+        // Enable force path style for MinIO compatibility
+        if std::env::var("S3_ENDPOINT").is_ok() {
+            s3_config_builder = s3_config_builder.force_path_style(true);
+        }
+        
+        let aws_s3_config = s3_config_builder.build();
+        let client = S3Client::from_conf(aws_s3_config);
+        
+        // Use custom endpoint URL or default AWS S3 format
+        let base_url = if let Ok(endpoint) = std::env::var("S3_ENDPOINT") {
+            format!("{}/{}", endpoint, s3_config.bucket_name)
+        } else {
+            format!("https://{}.s3.{}.amazonaws.com", 
+                s3_config.bucket_name, 
+                s3_config.region
+            )
+        };
 
         Ok(Self {
             client,
             bucket_name: s3_config.bucket_name.clone(),
             base_url,
+            max_file_size_bytes: (config.storage.max_file_size_mb * 1024 * 1024) as usize,
         })
     }
 
@@ -82,7 +114,10 @@ impl S3Storage {
             .content_type(content_type)
             .send()
             .await
-            .map_err(|e| AppError::StorageError(format!("Failed to upload to S3: {}", e)))?;
+            .map_err(|e| {
+                tracing::error!("S3 upload error details: {:?}", e);
+                AppError::StorageError(format!("Failed to upload to S3: {}", e))
+            })?;
 
         Ok(self.get_url(&key))
     }
@@ -112,6 +147,7 @@ impl S3Storage {
 pub struct LocalStorage {
     base_path: PathBuf,
     base_url: String,
+    max_file_size_bytes: usize,
 }
 
 impl LocalStorage {
@@ -127,15 +163,23 @@ impl LocalStorage {
             config.server.port
         );
 
+        // Ensure base directory exists
+        if !base_path.exists() {
+            std::fs::create_dir_all(&base_path)
+                .map_err(|e| AppError::StorageError(format!("Failed to create base storage directory {}: {}", base_path.display(), e)))?;
+        }
+
         Ok(Self {
             base_path,
             base_url,
+            max_file_size_bytes: (config.storage.max_file_size_mb * 1024 * 1024) as usize,
         })
     }
 
     async fn ensure_directory(&self, path: &Path) -> AppResult<()> {
         if !path.exists() {
-            fs::create_dir_all(path).await?;
+            fs::create_dir_all(path).await
+                .map_err(|e| AppError::StorageError(format!("Failed to create directory {}: {}", path.display(), e)))?;
         }
         Ok(())
     }
@@ -147,7 +191,8 @@ impl LocalStorage {
         self.ensure_directory(&dir_path).await?;
         
         let file_path = dir_path.join(filename);
-        fs::write(&file_path, data).await?;
+        fs::write(&file_path, data).await
+            .map_err(|e| AppError::StorageError(format!("Failed to write file {}: {}", file_path.display(), e)))?;
 
         let relative_path = format!("{}/{}", dir_name, filename);
         Ok(self.get_url(&relative_path))

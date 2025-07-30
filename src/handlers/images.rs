@@ -17,47 +17,77 @@ pub struct ImageUploadResponse {
 }
 
 pub async fn upload_image(
-    State((_cable_color_service, _item_service, _loan_service, storage_service)): State<(Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>, Arc<StorageService>)>,
+    State((storage_service, _cable_color_service, _item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
     mut multipart: Multipart,
 ) -> AppResult<(StatusCode, Json<ImageUploadResponse>)> {
+    tracing::info!("Starting image upload process");
+    
     while let Some(field) = multipart.next_field().await.map_err(|e| {
+        tracing::error!("Failed to read multipart field: {}", e);
         crate::error::AppError::BadRequest(format!("Failed to read multipart field: {}", e))
     })? {
         let name = field.name().unwrap_or("").to_string();
+        tracing::debug!("Processing multipart field: '{}'", name);
         
         if name == "image" {
             let filename = field.file_name()
-                .ok_or_else(|| crate::error::AppError::BadRequest("No filename provided".to_string()))?
+                .unwrap_or("image.jpg") // デフォルトファイル名を提供
                 .to_string();
             
             let content_type = field.content_type()
                 .unwrap_or("application/octet-stream")
                 .to_string();
             
-            // 画像ファイルの検証
-            if !is_image_content_type(&content_type) {
+            tracing::info!("Received file: filename='{}', content_type='{}'", filename, content_type);
+            
+            let content_type_valid = is_image_content_type(&content_type);
+            let extension_valid = is_image_extension(&filename);
+            
+            tracing::info!("Validation: content_type_valid={}, extension_valid={}", content_type_valid, extension_valid);
+            
+            // 画像ファイルの検証（Content-Typeまたは拡張子で判定）
+            if !content_type_valid && !extension_valid {
+                tracing::error!("File rejected: content-type='{}', filename='{}'", content_type, filename);
                 return Err(crate::error::AppError::BadRequest(
-                    "Only image files are allowed (JPEG, PNG, GIF, WebP)".to_string()
+                    format!("Only image files are allowed (JPEG, PNG, GIF, WebP). Got content-type: {}, filename: {}", content_type, filename)
                 ));
             }
             
-            let data = field.bytes().await.map_err(|e| {
-                crate::error::AppError::BadRequest(format!("Failed to read file data: {}", e))
-            })?;
+            // チャンクごとにデータを読み込み
+            let mut data = Vec::new();
+            let mut field = field;
             
-            // ファイルサイズ制限 (5MB)
-            const MAX_FILE_SIZE: usize = 5 * 1024 * 1024;
-            if data.len() > MAX_FILE_SIZE {
-                return Err(crate::error::AppError::BadRequest(
-                    "File size exceeds 5MB limit".to_string()
-                ));
+            while let Some(chunk) = field.chunk().await.map_err(|e| {
+                tracing::error!("Failed to read file chunk: {:?}", e);
+                crate::error::AppError::BadRequest(format!("Failed to read file chunk: {}", e))
+            })? {
+                data.extend_from_slice(&chunk);
+                
+                // メモリ使用量制限のため、チャンクごとにサイズチェック
+                let max_file_size = storage_service.get_max_file_size_bytes();
+                if data.len() > max_file_size {
+                    tracing::error!("File size too large during chunk reading: {} > {}", data.len(), max_file_size);
+                    return Err(crate::error::AppError::BadRequest(
+                        format!("File size exceeds {}MB limit", max_file_size / (1024 * 1024))
+                    ));
+                }
             }
+            
+            tracing::info!("File data read successfully, size: {} bytes", data.len());
             
             // ユニークなファイル名を生成
             let unique_filename = generate_unique_filename(&filename);
+            tracing::info!("Generated unique filename: {}", unique_filename);
             
             // ストレージにアップロード
-            let url = storage_service.upload(data.to_vec(), &unique_filename, &content_type).await?;
+            tracing::info!("Starting storage upload...");
+            let url = storage_service.upload(data.to_vec(), &unique_filename, &content_type).await
+                .map_err(|e| {
+                    tracing::error!("Storage upload failed: {}", e);
+                    e
+                })?;
+            
+            tracing::info!("Upload successful! URL: {}", url);
             
             return Ok((StatusCode::CREATED, Json(ImageUploadResponse {
                 url,
@@ -67,17 +97,37 @@ pub async fn upload_image(
         }
     }
     
+    tracing::error!("No image field found in multipart data");
     Err(crate::error::AppError::BadRequest("No image field found in multipart data".to_string()))
 }
 
 fn is_image_content_type(content_type: &str) -> bool {
-    matches!(content_type, 
-        "image/jpeg" | "image/jpg" | "image/png" | "image/gif" | "image/webp"
-    )
+    let is_valid = matches!(content_type, 
+        "image/jpeg" | "image/jpg" | "image/png" | "image/gif" | "image/webp" |
+        "image/pjpeg" | // IE用JPEG
+        "application/octet-stream" // ブラウザによってはこれで送信される
+    );
+    tracing::debug!("Content-Type '{}' validation: {}", content_type, is_valid);
+    is_valid
+}
+
+fn is_image_extension(filename: &str) -> bool {
+    let extension = std::path::Path::new(filename)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase())
+        .unwrap_or_default();
+    
+    let is_valid = matches!(extension.as_str(), "jpg" | "jpeg" | "png" | "gif" | "webp");
+    tracing::debug!("File extension '{}' validation: {}", extension, is_valid);
+    is_valid
 }
 
 fn generate_unique_filename(original_filename: &str) -> String {
-    let timestamp = chrono::Utc::now().timestamp_millis();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
     let extension = std::path::Path::new(original_filename)
         .extension()
         .and_then(|ext| ext.to_str())

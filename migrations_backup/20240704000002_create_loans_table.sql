@@ -1,15 +1,15 @@
--- Create loans table (PostgreSQL compatible)
+-- Create loans table (compatible with both PostgreSQL and SQLite)
 CREATE TABLE IF NOT EXISTS loans (
-    id BIGSERIAL PRIMARY KEY,
-    item_id BIGINT NOT NULL REFERENCES items(id),
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id),
     student_number TEXT NOT NULL,
     student_name TEXT NOT NULL,
     organization TEXT,
-    loan_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    return_date TIMESTAMPTZ,
+    loan_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    return_date TIMESTAMP,
     remarks TEXT,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes

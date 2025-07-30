@@ -13,7 +13,7 @@ tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
 tokio = { version = "1", features = ["full"] }
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "json", "chrono", "rust_decimal", "migrate"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "json", "chrono", "rust_decimal", "migrate", "macros"], default-features = false }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -37,14 +37,12 @@ chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1.35", features = ["serde-float"] }
 
 # HTTP client (for S3)
-reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }
+reqwest = { version = "0.11", features = ["json", "multipart", "rustls-tls"], default-features = false }
 
 # AWS SDK (for S3)
 aws-config = "1.1"
 aws-sdk-s3 = "1.14"
 
-# File uploads
-multer = "3.0"
 
 # Validation
 validator = { version = "0.18", features = ["derive"] }
@@ -62,6 +60,9 @@ uuid = { version = "1.7", features = ["v4", "serde"] }
 
 # Async trait
 async-trait = "0.1"
+
+# Base conversion
+radix_fmt = "1.0"
 
 [dev-dependencies]
 tokio-test = "0.4"
