@@ -67,30 +67,30 @@ impl S3Storage {
             ))?;
 
         let mut aws_config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest());
-        
+
         // Check if custom endpoint is set (for MinIO)
         if let Ok(endpoint) = std::env::var("S3_ENDPOINT") {
             aws_config_builder = aws_config_builder.endpoint_url(endpoint.clone());
         }
-        
+
         let aws_config = aws_config_builder.load().await;
-        
+
         let mut s3_config_builder = aws_sdk_s3::config::Builder::from(&aws_config);
-        
+
         // Enable force path style for MinIO compatibility
         if std::env::var("S3_ENDPOINT").is_ok() {
             s3_config_builder = s3_config_builder.force_path_style(true);
         }
-        
+
         let aws_s3_config = s3_config_builder.build();
         let client = S3Client::from_conf(aws_s3_config);
-        
+
         // Use custom endpoint URL or default AWS S3 format
         let base_url = if let Ok(endpoint) = std::env::var("S3_ENDPOINT") {
             format!("{}/{}", endpoint, s3_config.bucket_name)
         } else {
-            format!("https://{}.s3.{}.amazonaws.com", 
-                s3_config.bucket_name, 
+            format!("https://{}.s3.{}.amazonaws.com",
+                s3_config.bucket_name,
                 s3_config.region
             )
         };
@@ -105,7 +105,7 @@ impl S3Storage {
 
     pub async fn upload(&self, data: Vec<u8>, filename: &str, content_type: &str) -> AppResult<String> {
         let key = format!("images/{}/{}", Uuid::new_v4(), filename);
-        
+
         self.client
             .put_object()
             .bucket(&self.bucket_name)
@@ -158,8 +158,8 @@ impl LocalStorage {
             ))?;
 
         let base_path = PathBuf::from(&local_config.path);
-        let base_url = format!("http://{}:{}/uploads", 
-            config.server.host, 
+        let base_url = format!("http://{}:{}/uploads",
+            config.server.host,
             config.server.port
         );
 
@@ -187,9 +187,9 @@ impl LocalStorage {
     pub async fn upload(&self, data: Vec<u8>, filename: &str, _content_type: &str) -> AppResult<String> {
         let dir_name = Uuid::new_v4().to_string();
         let dir_path = self.base_path.join(&dir_name);
-        
+
         self.ensure_directory(&dir_path).await?;
-        
+
         let file_path = dir_path.join(filename);
         fs::write(&file_path, data).await
             .map_err(|e| AppError::StorageError(format!("Failed to write file {}: {}", file_path.display(), e)))?;
@@ -204,10 +204,10 @@ impl LocalStorage {
             .ok_or_else(|| AppError::StorageError("Invalid local storage URL".to_string()))?;
 
         let file_path = self.base_path.join(relative_path);
-        
+
         if file_path.exists() {
             fs::remove_file(&file_path).await?;
-            
+
             // Try to remove empty parent directory
             if let Some(parent) = file_path.parent() {
                 let _ = fs::remove_dir(parent).await;

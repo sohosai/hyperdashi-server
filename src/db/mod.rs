@@ -14,23 +14,23 @@ pub enum DatabasePool {
 impl DatabasePool {
     pub async fn new(config: &Config) -> AppResult<Self> {
         let database_url = &config.database.url;
-        
+
         if database_url.starts_with("postgres://") || database_url.starts_with("postgresql://") {
             let pool = PgPoolOptions::new()
                 .max_connections(10)
                 .connect(database_url)
                 .await?;
-            
+
             Ok(DatabasePool::Postgres(pool))
         } else if database_url.starts_with("sqlite://") {
             let options = SqliteConnectOptions::from_str(database_url)?
                 .create_if_missing(true);
-            
+
             let pool = SqlitePoolOptions::new()
                 .max_connections(10)
                 .connect_with(options)
                 .await?;
-            
+
             Ok(DatabasePool::Sqlite(pool))
         } else {
             Err(crate::error::AppError::ConfigError(

@@ -30,37 +30,37 @@ pub struct Item {
 pub struct CreateItemRequest {
     #[validate(length(min = 1, max = 255))]
     pub name: String,
-    
+
     #[validate(length(min = 1, max = 50))]
     pub label_id: String,
-    
+
     #[validate(length(max = 255))]
     pub model_number: Option<String>,
-    
+
     pub remarks: Option<String>,
-    
+
     #[validate(range(min = 1900, max = 2100))]
     pub purchase_year: Option<i64>,
-    
+
     pub purchase_amount: Option<f64>,
-    
+
     #[validate(range(min = 1, max = 100))]
     pub durability_years: Option<i64>,
-    
+
     pub is_depreciation_target: Option<bool>,
-    
+
     pub connection_names: Option<Vec<String>>,
-    
+
     pub cable_color_pattern: Option<Vec<String>>,
-    
+
     pub storage_location: Option<String>,
-    
+
     pub container_id: Option<String>,
-    
+
     pub storage_type: Option<String>, // "location" or "container"
-    
+
     pub qr_code_type: Option<String>,
-    
+
     #[validate(url)]
     pub image_url: Option<String>,
 }
@@ -69,41 +69,41 @@ pub struct CreateItemRequest {
 pub struct UpdateItemRequest {
     #[validate(length(min = 1, max = 255))]
     pub name: Option<String>,
-    
+
     #[validate(length(min = 1, max = 50))]
     pub label_id: Option<String>,
-    
+
     #[validate(length(max = 255))]
     pub model_number: Option<String>,
-    
+
     pub remarks: Option<String>,
-    
+
     #[validate(range(min = 1900, max = 2100))]
     pub purchase_year: Option<i64>,
-    
+
     pub purchase_amount: Option<f64>,
-    
+
     #[validate(range(min = 1, max = 100))]
     pub durability_years: Option<i64>,
-    
+
     pub is_depreciation_target: Option<bool>,
-    
+
     pub connection_names: Option<Vec<String>>,
-    
+
     pub cable_color_pattern: Option<Vec<String>>,
-    
+
     pub storage_location: Option<String>,
-    
+
     pub container_id: Option<String>,
-    
+
     pub storage_type: Option<String>, // "location" or "container"
-    
+
     pub is_on_loan: Option<bool>,
-    
+
     pub qr_code_type: Option<String>,
-    
+
     pub is_disposed: Option<bool>,
-    
+
     #[validate(url)]
     pub image_url: Option<String>,
 }

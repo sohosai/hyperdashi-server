@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
     // Initialize database connection
     let db_pool = DatabasePool::new(&config).await?;
     info!("Database connection established");
-    
+
     // Run migrations
     db_pool.migrate().await?;
     info!("Database migrations completed");
@@ -93,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/labels/generate", post(handlers::generate_labels))
         .route("/api/v1/labels", get(handlers::get_label_info))
         // Image routes - larger body limit for file uploads
-        .route("/api/v1/images/upload", 
+        .route("/api/v1/images/upload",
             post(handlers::upload_image)
                 .layer(DefaultBodyLimit::max(config.storage.max_file_size_mb as usize * 1024 * 1024 * 2)) // 2倍のマージンを設定
         )
@@ -109,9 +109,9 @@ async fn main() -> anyhow::Result<()> {
         .layer({
             let cors_origins = env::var("CORS_ALLOWED_ORIGINS")
                 .unwrap_or_else(|_| "http://localhost:3000,http://127.0.0.1:3000".to_string());
-            
+
             info!("CORS allowed origins: {}", cors_origins);
-            
+
             CorsLayer::new()
                 .allow_origin(Any)
                 .allow_methods(Any)
@@ -134,7 +134,7 @@ async fn main() -> anyhow::Result<()> {
         config.server.port,
     ));
     info!("Server listening on {}", addr);
-    
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
 

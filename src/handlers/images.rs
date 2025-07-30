@@ -21,30 +21,30 @@ pub async fn upload_image(
     mut multipart: Multipart,
 ) -> AppResult<(StatusCode, Json<ImageUploadResponse>)> {
     tracing::info!("Starting image upload process");
-    
+
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         tracing::error!("Failed to read multipart field: {}", e);
         crate::error::AppError::BadRequest(format!("Failed to read multipart field: {}", e))
     })? {
         let name = field.name().unwrap_or("").to_string();
         tracing::debug!("Processing multipart field: '{}'", name);
-        
+
         if name == "image" {
             let filename = field.file_name()
                 .unwrap_or("image.jpg") // デフォルトファイル名を提供
                 .to_string();
-            
+
             let content_type = field.content_type()
                 .unwrap_or("application/octet-stream")
                 .to_string();
-            
+
             tracing::info!("Received file: filename='{}', content_type='{}'", filename, content_type);
-            
+
             let content_type_valid = is_image_content_type(&content_type);
             let extension_valid = is_image_extension(&filename);
-            
+
             tracing::info!("Validation: content_type_valid={}, extension_valid={}", content_type_valid, extension_valid);
-            
+
             // 画像ファイルの検証（Content-Typeまたは拡張子で判定）
             if !content_type_valid && !extension_valid {
                 tracing::error!("File rejected: content-type='{}', filename='{}'", content_type, filename);
@@ -52,17 +52,17 @@ pub async fn upload_image(
                     format!("Only image files are allowed (JPEG, PNG, GIF, WebP). Got content-type: {}, filename: {}", content_type, filename)
                 ));
             }
-            
+
             // チャンクごとにデータを読み込み
             let mut data = Vec::new();
             let mut field = field;
-            
+
             while let Some(chunk) = field.chunk().await.map_err(|e| {
                 tracing::error!("Failed to read file chunk: {:?}", e);
                 crate::error::AppError::BadRequest(format!("Failed to read file chunk: {}", e))
             })? {
                 data.extend_from_slice(&chunk);
-                
+
                 // メモリ使用量制限のため、チャンクごとにサイズチェック
                 let max_file_size = storage_service.get_max_file_size_bytes();
                 if data.len() > max_file_size {
@@ -72,13 +72,13 @@ pub async fn upload_image(
                     ));
                 }
             }
-            
+
             tracing::info!("File data read successfully, size: {} bytes", data.len());
-            
+
             // ユニークなファイル名を生成
             let unique_filename = generate_unique_filename(&filename);
             tracing::info!("Generated unique filename: {}", unique_filename);
-            
+
             // ストレージにアップロード
             tracing::info!("Starting storage upload...");
             let url = storage_service.upload(data.to_vec(), &unique_filename, &content_type).await
@@ -86,9 +86,9 @@ pub async fn upload_image(
                     tracing::error!("Storage upload failed: {}", e);
                     e
                 })?;
-            
+
             tracing::info!("Upload successful! URL: {}", url);
-            
+
             return Ok((StatusCode::CREATED, Json(ImageUploadResponse {
                 url,
                 filename: unique_filename,
@@ -96,13 +96,13 @@ pub async fn upload_image(
             })));
         }
     }
-    
+
     tracing::error!("No image field found in multipart data");
     Err(crate::error::AppError::BadRequest("No image field found in multipart data".to_string()))
 }
 
 fn is_image_content_type(content_type: &str) -> bool {
-    let is_valid = matches!(content_type, 
+    let is_valid = matches!(content_type,
         "image/jpeg" | "image/jpg" | "image/png" | "image/gif" | "image/webp" |
         "image/pjpeg" | // IE用JPEG
         "application/octet-stream" // ブラウザによってはこれで送信される
@@ -117,7 +117,7 @@ fn is_image_extension(filename: &str) -> bool {
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.to_lowercase())
         .unwrap_or_default();
-    
+
     let is_valid = matches!(extension.as_str(), "jpg" | "jpeg" | "png" | "gif" | "webp");
     tracing::debug!("File extension '{}' validation: {}", extension, is_valid);
     is_valid
@@ -132,6 +132,6 @@ fn generate_unique_filename(original_filename: &str) -> String {
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or("jpg");
-    
+
     format!("{}_{}.{}", timestamp, uuid::Uuid::new_v4(), extension)
 }

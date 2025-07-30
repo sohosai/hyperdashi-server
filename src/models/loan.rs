@@ -19,16 +19,16 @@ pub struct Loan {
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreateLoanRequest {
     pub item_id: i64,
-    
+
     #[validate(length(min = 1, max = 20))]
     pub student_number: String,
-    
+
     #[validate(length(min = 1, max = 100))]
     pub student_name: String,
-    
+
     #[validate(length(max = 255))]
     pub organization: Option<String>,
-    
+
     pub remarks: Option<String>,
 }
 

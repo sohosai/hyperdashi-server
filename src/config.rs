@@ -89,10 +89,10 @@ impl Config {
 
         let database_url = env::var("DATABASE_URL")
             .unwrap_or_else(|_| "sqlite://hyperdashi.db".to_string());
-        
+
         let server_host = env::var("SERVER_HOST")
             .unwrap_or_else(|_| "127.0.0.1".to_string());
-        
+
         let server_port = env::var("SERVER_PORT")
             .unwrap_or_else(|_| "8080".to_string())
             .parse::<u16>()

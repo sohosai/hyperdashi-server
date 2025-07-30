@@ -56,7 +56,7 @@ impl CableColorService {
                 let row = sqlx::query(
                     r#"
                     SELECT id, name, hex_code, description, created_at, updated_at
-                    FROM cable_colors 
+                    FROM cable_colors
                     WHERE id = $1
                     "#,
                 )
@@ -71,7 +71,7 @@ impl CableColorService {
                 let row = sqlx::query(
                     r#"
                     SELECT id, name, hex_code, description, created_at, updated_at
-                    FROM cable_colors 
+                    FROM cable_colors
                     WHERE id = ?1
                     "#,
                 )
@@ -98,8 +98,8 @@ impl CableColorService {
                 let rows = sqlx::query(
                     r#"
                     SELECT id, name, hex_code, description, created_at, updated_at
-                    FROM cable_colors 
-                    ORDER BY created_at DESC 
+                    FROM cable_colors
+                    ORDER BY created_at DESC
                     LIMIT $1 OFFSET $2
                     "#,
                 )
@@ -128,8 +128,8 @@ impl CableColorService {
                 let rows = sqlx::query(
                     r#"
                     SELECT id, name, hex_code, description, created_at, updated_at
-                    FROM cable_colors 
-                    ORDER BY created_at DESC 
+                    FROM cable_colors
+                    ORDER BY created_at DESC
                     LIMIT ?1 OFFSET ?2
                     "#,
                 )

@@ -25,7 +25,7 @@ impl LoanService {
                 .fetch_optional(pool)
                 .await?;
 
-                let item_row = item_row.ok_or_else(|| 
+                let item_row = item_row.ok_or_else(||
                     AppError::NotFound(format!("Item with id {} not found", req.item_id))
                 )?;
 
@@ -80,7 +80,7 @@ impl LoanService {
                 .fetch_optional(pool)
                 .await?;
 
-                let item_row = item_row.ok_or_else(|| 
+                let item_row = item_row.ok_or_else(||
                     AppError::NotFound(format!("Item with id {} not found", req.item_id))
                 )?;
 
@@ -132,10 +132,10 @@ impl LoanService {
             DatabasePool::Postgres(pool) => {
                 let row = sqlx::query(
                     r#"
-                    SELECT 
+                    SELECT
                         id, item_id, student_number, student_name, organization,
                         loan_date, return_date, remarks, created_at, updated_at
-                    FROM loans 
+                    FROM loans
                     WHERE id = $1
                     "#,
                 )
@@ -149,10 +149,10 @@ impl LoanService {
             DatabasePool::Sqlite(pool) => {
                 let row = sqlx::query(
                     r#"
-                    SELECT 
+                    SELECT
                         id, item_id, student_number, student_name, organization,
                         loan_date, return_date, remarks, created_at, updated_at
-                    FROM loans 
+                    FROM loans
                     WHERE id = ?1
                     "#,
                 )
@@ -209,7 +209,7 @@ impl LoanService {
 
                 let query_str = format!(
                     r#"
-                    SELECT 
+                    SELECT
                         l.id, l.item_id, l.student_number, l.student_name, l.organization,
                         l.loan_date, l.return_date, l.remarks, l.created_at, l.updated_at,
                         i.name as item_name, i.label_id as item_label_id
@@ -263,7 +263,7 @@ impl LoanService {
                     // フィルターなし
                     let rows = sqlx::query(
                         r#"
-                        SELECT 
+                        SELECT
                             l.id, l.item_id, l.student_number, l.student_name, l.organization,
                             l.loan_date, l.return_date, l.remarks, l.created_at, l.updated_at,
                             i.name as item_name, i.label_id as item_label_id
@@ -317,7 +317,7 @@ impl LoanService {
 
                     let query_str = format!(
                         r#"
-                        SELECT 
+                        SELECT
                             l.id, l.item_id, l.student_number, l.student_name, l.organization,
                             l.loan_date, l.return_date, l.remarks, l.created_at, l.updated_at,
                             i.name as item_name, i.label_id as item_label_id
@@ -386,7 +386,7 @@ impl LoanService {
                 .fetch_optional(pool)
                 .await?;
 
-                let loan_row = loan_row.ok_or_else(|| 
+                let loan_row = loan_row.ok_or_else(||
                     AppError::NotFound(format!("Loan with id {} not found", id))
                 )?;
 
@@ -431,7 +431,7 @@ impl LoanService {
                 .fetch_optional(pool)
                 .await?;
 
-                let loan_row = loan_row.ok_or_else(|| 
+                let loan_row = loan_row.ok_or_else(||
                     AppError::NotFound(format!("Loan with id {} not found", id))
                 )?;
 

@@ -24,7 +24,7 @@ impl ItemService {
                 let is_depreciation_target = req.is_depreciation_target.unwrap_or(false);
 
                 let storage_type = req.storage_type.as_ref().unwrap_or(&"location".to_string()).clone();
-                
+
                 let result = sqlx::query(
                     r#"
                     INSERT INTO items (
@@ -65,7 +65,7 @@ impl ItemService {
                 let is_depreciation_target = req.is_depreciation_target.unwrap_or(false);
 
                 let storage_type = req.storage_type.as_ref().unwrap_or(&"location".to_string()).clone();
-                
+
                 let result = sqlx::query!(
                     r#"
                     INSERT INTO items (
@@ -104,13 +104,13 @@ impl ItemService {
             DatabasePool::Postgres(pool) => {
                 let row = sqlx::query(
                     r#"
-                    SELECT 
+                    SELECT
                         id, name, label_id, model_number, remarks, purchase_year,
                         purchase_amount, durability_years, is_depreciation_target,
                         connection_names, cable_color_pattern, storage_location,
                         container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
                         created_at, updated_at
-                    FROM items 
+                    FROM items
                     WHERE id = $1
                     "#,
                 )
@@ -124,13 +124,13 @@ impl ItemService {
             DatabasePool::Sqlite(pool) => {
                 let row = sqlx::query(
                     r#"
-                    SELECT 
+                    SELECT
                         id, name, label_id, model_number, remarks, purchase_year,
                         purchase_amount, durability_years, is_depreciation_target,
                         connection_names, cable_color_pattern, storage_location,
                         container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
                         created_at, updated_at
-                    FROM items 
+                    FROM items
                     WHERE id = ?1
                     "#,
                 )
@@ -149,13 +149,13 @@ impl ItemService {
             DatabasePool::Postgres(pool) => {
                 let row = sqlx::query(
                     r#"
-                    SELECT 
+                    SELECT
                         id, name, label_id, model_number, remarks, purchase_year,
                         purchase_amount, durability_years, is_depreciation_target,
                         connection_names, cable_color_pattern, storage_location,
                         container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
                         created_at, updated_at
-                    FROM items 
+                    FROM items
                     WHERE label_id = $1
                     "#,
                 )
@@ -169,13 +169,13 @@ impl ItemService {
             DatabasePool::Sqlite(pool) => {
                 let row = sqlx::query(
                     r#"
-                    SELECT 
+                    SELECT
                         id, name, label_id, model_number, remarks, purchase_year,
                         purchase_amount, durability_years, is_depreciation_target,
                         connection_names, cable_color_pattern, storage_location,
                         container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
                         created_at, updated_at
-                    FROM items 
+                    FROM items
                     WHERE label_id = ?1
                     "#,
                 )
@@ -246,15 +246,15 @@ impl ItemService {
 
                 let query_str = format!(
                     r#"
-                    SELECT 
+                    SELECT
                         id, name, label_id, model_number, remarks, purchase_year,
                         purchase_amount, durability_years, is_depreciation_target,
                         connection_names, cable_color_pattern, storage_location,
                         container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
                         created_at, updated_at
-                    FROM items 
+                    FROM items
                     {}
-                    ORDER BY created_at DESC 
+                    ORDER BY created_at DESC
                     LIMIT ${} OFFSET ${}
                     "#,
                     where_clause, param_index, param_index+1
@@ -355,14 +355,14 @@ impl ItemService {
                     // フィルターなし
                     let rows = sqlx::query(
                         r#"
-                        SELECT 
+                        SELECT
                             id, name, label_id, model_number, remarks, purchase_year,
                             purchase_amount, durability_years, is_depreciation_target,
                             connection_names, cable_color_pattern, storage_location,
                             container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
                             created_at, updated_at
-                        FROM items 
-                        ORDER BY created_at DESC 
+                        FROM items
+                        ORDER BY created_at DESC
                         LIMIT ?1 OFFSET ?2
                         "#,
                     )
@@ -385,15 +385,15 @@ impl ItemService {
                     // フィルターあり - 動的クエリを使用
                     let query_str = format!(
                         r#"
-                        SELECT 
+                        SELECT
                             id, name, label_id, model_number, remarks, purchase_year,
                             purchase_amount, durability_years, is_depreciation_target,
                             connection_names, cable_color_pattern, storage_location,
                             container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
                             created_at, updated_at
-                        FROM items 
+                        FROM items
                         {}
-                        ORDER BY created_at DESC 
+                        ORDER BY created_at DESC
                         LIMIT ? OFFSET ?
                         "#,
                         where_clause
@@ -604,7 +604,7 @@ impl ItemService {
             DatabasePool::Postgres(pool) => {
                 // まず物品が存在し、貸出中でないかチェック
                 let item = self.get_item(id).await?;
-                
+
                 if item.is_on_loan.unwrap_or(false) {
                     return Err(AppError::BadRequest("Cannot delete item that is currently on loan".to_string()));
                 }
@@ -635,7 +635,7 @@ impl ItemService {
             DatabasePool::Sqlite(pool) => {
                 // まず物品が存在し、貸出中でないかチェック
                 let item = self.get_item(id).await?;
-                
+
                 if item.is_on_loan.unwrap_or(false) {
                     return Err(AppError::BadRequest("Cannot delete item that is currently on loan".to_string()));
                 }
@@ -818,13 +818,13 @@ impl ItemService {
             DatabasePool::Postgres(pool) => {
                 // Get current counter value and increment it atomically
                 let mut tx = pool.begin().await?;
-                
+
                 // Get current counter value
                 let counter_row = sqlx::query("SELECT current_value FROM label_counter WHERE id = 1")
                     .fetch_one(&mut *tx)
                     .await?;
                 let current_value: i64 = counter_row.get("current_value");
-                
+
                 // Check we have enough available IDs (max ZZZZ = 1,679,615)
                 if current_value + quantity as i64 > 1679615 {
                     return Err(AppError::BadRequest("Not enough label IDs available".to_string()));
@@ -838,14 +838,14 @@ impl ItemService {
                     let label_id = format!("{:0>4}", radix_fmt::radix_36(new_number as u32).to_string().to_uppercase());
                     label_ids.push(label_id);
                 }
-                
+
                 // Update counter
                 let new_counter_value = current_value + quantity as i64;
                 sqlx::query("UPDATE label_counter SET current_value = $1 WHERE id = 1")
                     .bind(new_counter_value)
                     .execute(&mut *tx)
                     .await?;
-                
+
                 tx.commit().await?;
 
                 Ok(label_ids)
@@ -853,13 +853,13 @@ impl ItemService {
             DatabasePool::Sqlite(pool) => {
                 // Get current counter value and increment it atomically
                 let mut tx = pool.begin().await?;
-                
+
                 // Get current counter value
                 let counter_row = sqlx::query("SELECT current_value FROM label_counter WHERE id = 1")
                     .fetch_one(&mut *tx)
                     .await?;
                 let current_value: i64 = counter_row.get("current_value");
-                
+
                 // Check we have enough available IDs (max ZZZZ = 1,679,615)
                 if current_value + quantity as i64 > 1679615 {
                     return Err(AppError::BadRequest("Not enough label IDs available".to_string()));
@@ -873,14 +873,14 @@ impl ItemService {
                     let label_id = format!("{:0>4}", radix_fmt::radix_36(new_number as u32).to_string().to_uppercase());
                     label_ids.push(label_id);
                 }
-                
+
                 // Update counter
                 let new_counter_value = current_value + quantity as i64;
                 sqlx::query("UPDATE label_counter SET current_value = ? WHERE id = 1")
                     .bind(new_counter_value)
                     .execute(&mut *tx)
                     .await?;
-                
+
                 tx.commit().await?;
 
                 Ok(label_ids)
@@ -893,12 +893,12 @@ impl ItemService {
             DatabasePool::Postgres(pool) => {
                 // Get all possible 4-digit base-36 labels from 0000 to ZZZZ
                 let mut all_labels = Vec::new();
-                
+
                 // Get used labels from database
                 let used_labels_rows = sqlx::query("SELECT label_id, name FROM items WHERE LENGTH(label_id) = 4")
                     .fetch_all(pool)
                     .await?;
-                
+
                 let mut used_labels_map = std::collections::HashMap::new();
                 for row in used_labels_rows {
                     let label_id: String = row.get("label_id");
@@ -922,12 +922,12 @@ impl ItemService {
             DatabasePool::Sqlite(pool) => {
                 // Get all possible 4-digit base-36 labels from 0000 to ZZZZ
                 let mut all_labels = Vec::new();
-                
+
                 // Get used labels from database
                 let used_labels_rows = sqlx::query("SELECT label_id, name FROM items WHERE LENGTH(label_id) = 4")
                     .fetch_all(pool)
                     .await?;
-                
+
                 let mut used_labels_map = std::collections::HashMap::new();
                 for row in used_labels_rows {
                     let label_id: String = row.get("label_id");

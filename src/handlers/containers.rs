@@ -46,7 +46,7 @@ pub async fn container_create(
     }
 
     let container_service = ContainerService::new(state.db.clone());
-    
+
     match container_service.create_container(request).await {
         Ok(container) => Ok((
             StatusCode::CREATED,
@@ -61,7 +61,7 @@ pub async fn container_get(
     Path(id): Path<String>,
 ) -> Result<Json<GetContainerResponse>, StatusCode> {
     let container_service = ContainerService::new(state.db.clone());
-    
+
     match container_service.get_container(&id).await {
         Ok(container) => Ok(Json(GetContainerResponse { container })),
         Err(_) => Err(StatusCode::NOT_FOUND),
@@ -73,10 +73,10 @@ pub async fn container_list(
     Query(query): Query<ListContainersQuery>,
 ) -> Result<Json<ListContainersResponse>, StatusCode> {
     let container_service = ContainerService::new(state.db.clone());
-    
+
     let location_filter = query.location.as_deref();
     let include_disposed = query.include_disposed.unwrap_or(false);
-    
+
     match container_service.list_containers(location_filter, include_disposed).await {
         Ok(containers) => Ok(Json(ListContainersResponse { containers })),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -93,7 +93,7 @@ pub async fn container_update(
     }
 
     let container_service = ContainerService::new(state.db.clone());
-    
+
     match container_service.update_container(&id, request).await {
         Ok(container) => Ok(Json(UpdateContainerResponse { container })),
         Err(_) => Err(StatusCode::NOT_FOUND),
@@ -105,7 +105,7 @@ pub async fn container_delete(
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
     let container_service = ContainerService::new(state.db.clone());
-    
+
     match container_service.delete_container(&id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::NOT_FOUND),
@@ -117,7 +117,7 @@ pub async fn containers_by_location(
     Path(location): Path<String>,
 ) -> Result<Json<ListContainersResponse>, StatusCode> {
     let container_service = ContainerService::new(state.db.clone());
-    
+
     match container_service.get_containers_by_location(&location).await {
         Ok(containers) => {
             let containers_with_count = containers.into_iter().map(|container| {
@@ -126,8 +126,8 @@ pub async fn containers_by_location(
                     item_count: 0, // For this endpoint, we don't calculate item count
                 }
             }).collect();
-            Ok(Json(ListContainersResponse { 
-                containers: containers_with_count 
+            Ok(Json(ListContainersResponse {
+                containers: containers_with_count
             }))
         },
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
