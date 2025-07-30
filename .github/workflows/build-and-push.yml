@@ -54,8 +54,18 @@ jobs:
     - name: Check formatting
       run: cargo fmt --all -- --check
 
+    - name: Install sqlx-cli
+      run: cargo install sqlx-cli --no-default-features --features postgres
+
+    - name: Run database migrations
+      run: sqlx migrate run
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost/test_db
+
     - name: Run clippy
       run: cargo clippy --all-targets --all-features
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost/test_db
 
     - name: Run tests
       run: cargo test
