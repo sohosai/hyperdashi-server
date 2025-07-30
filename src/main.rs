@@ -21,9 +21,7 @@ mod services;
 
 use crate::config::{Config, StorageType};
 use crate::db::DatabasePool;
-use crate::services::{
-    CableColorService, ItemService, LoanService, StorageService,
-};
+use crate::services::{CableColorService, ItemService, LoanService, StorageService};
 
 pub type AppState = (
     Arc<StorageService>,
