@@ -9,7 +9,7 @@ use validator::Validate;
 
 use crate::error::AppResult;
 use crate::models::{CreateItemRequest, Item, ItemsListResponse, UpdateItemRequest};
-use crate::services::{ItemService, LoanService, StorageService, CableColorService};
+use crate::services::{CableColorService, ItemService, LoanService, StorageService};
 
 #[derive(Deserialize)]
 pub struct ItemsQuery {
@@ -33,7 +33,12 @@ fn default_per_page() -> u32 {
 }
 
 pub async fn list_items(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Query(params): Query<ItemsQuery>,
 ) -> AppResult<Json<ItemsListResponse>> {
     let response = item_service
@@ -52,7 +57,12 @@ pub async fn list_items(
 }
 
 pub async fn get_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.get_item(id).await?;
@@ -60,7 +70,12 @@ pub async fn get_item(
 }
 
 pub async fn get_item_by_label(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(label_id): Path<String>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.get_item_by_label(&label_id).await?;
@@ -68,7 +83,12 @@ pub async fn get_item_by_label(
 }
 
 pub async fn create_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Json(req): Json<CreateItemRequest>,
 ) -> AppResult<(StatusCode, Json<Item>)> {
     req.validate()
@@ -79,7 +99,12 @@ pub async fn create_item(
 }
 
 pub async fn update_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(id): Path<i64>,
     Json(req): Json<UpdateItemRequest>,
 ) -> AppResult<Json<Item>> {
@@ -91,7 +116,12 @@ pub async fn update_item(
 }
 
 pub async fn delete_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(id): Path<i64>,
 ) -> AppResult<StatusCode> {
     item_service.delete_item(id).await?;
@@ -99,7 +129,12 @@ pub async fn delete_item(
 }
 
 pub async fn dispose_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.dispose_item(id).await?;
@@ -107,7 +142,12 @@ pub async fn dispose_item(
 }
 
 pub async fn undispose_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.undispose_item(id).await?;
@@ -120,14 +160,24 @@ pub struct SuggestionsResponse {
 }
 
 pub async fn get_connection_names_suggestions(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
 ) -> AppResult<Json<SuggestionsResponse>> {
     let suggestions = item_service.get_connection_names_suggestions().await?;
     Ok(Json(SuggestionsResponse { suggestions }))
 }
 
 pub async fn get_storage_locations_suggestions(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
 ) -> AppResult<Json<SuggestionsResponse>> {
     let suggestions = item_service.get_storage_locations_suggestions().await?;
     Ok(Json(SuggestionsResponse { suggestions }))

@@ -4,7 +4,6 @@ use crate::models::{CreateLoanRequest, Loan, LoanWithItem, LoansListResponse, Re
 use chrono::Utc;
 use sqlx::Row;
 
-
 pub struct LoanService {
     db: DatabasePool,
 }
@@ -19,15 +18,15 @@ impl LoanService {
             DatabasePool::Postgres(pool) => {
                 // まず、物品が存在し、貸出可能かチェック
                 let item_row = sqlx::query(
-                    "SELECT id, name, is_on_loan, is_disposed FROM items WHERE id = $1"
+                    "SELECT id, name, is_on_loan, is_disposed FROM items WHERE id = $1",
                 )
                 .bind(req.item_id)
                 .fetch_optional(pool)
                 .await?;
 
-                let item_row = item_row.ok_or_else(||
+                let item_row = item_row.ok_or_else(|| {
                     AppError::NotFound(format!("Item with id {} not found", req.item_id))
-                )?;
+                })?;
 
                 let is_on_loan: Option<bool> = item_row.try_get("is_on_loan").unwrap_or(None);
                 let is_disposed: Option<bool> = item_row.try_get("is_disposed").unwrap_or(None);
@@ -37,7 +36,9 @@ impl LoanService {
                 }
 
                 if is_disposed.unwrap_or(false) {
-                    return Err(AppError::BadRequest("Item is disposed and cannot be loaned".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Item is disposed and cannot be loaned".to_string(),
+                    ));
                 }
 
                 // 貸出記録を作成
@@ -47,7 +48,7 @@ impl LoanService {
                         item_id, student_number, student_name, organization, remarks
                     ) VALUES ($1, $2, $3, $4, $5)
                     RETURNING id
-                    "#
+                    "#,
                 )
                 .bind(req.item_id)
                 .bind(&req.student_number)
@@ -61,28 +62,26 @@ impl LoanService {
 
                 // 物品の貸出状態を更新
                 let now = Utc::now();
-                sqlx::query(
-                    "UPDATE items SET is_on_loan = true, updated_at = $2 WHERE id = $1"
-                )
-                .bind(req.item_id)
-                .bind(now)
-                .execute(pool)
-                .await?;
+                sqlx::query("UPDATE items SET is_on_loan = true, updated_at = $2 WHERE id = $1")
+                    .bind(req.item_id)
+                    .bind(now)
+                    .execute(pool)
+                    .await?;
 
                 self.get_loan(loan_id).await
             }
             DatabasePool::Sqlite(pool) => {
                 // まず、物品が存在し、貸出可能かチェック
                 let item_row = sqlx::query(
-                    "SELECT id, name, is_on_loan, is_disposed FROM items WHERE id = ?1"
+                    "SELECT id, name, is_on_loan, is_disposed FROM items WHERE id = ?1",
                 )
                 .bind(req.item_id)
                 .fetch_optional(pool)
                 .await?;
 
-                let item_row = item_row.ok_or_else(||
+                let item_row = item_row.ok_or_else(|| {
                     AppError::NotFound(format!("Item with id {} not found", req.item_id))
-                )?;
+                })?;
 
                 let is_on_loan: Option<bool> = item_row.try_get("is_on_loan").unwrap_or(None);
                 let is_disposed: Option<bool> = item_row.try_get("is_disposed").unwrap_or(None);
@@ -92,7 +91,9 @@ impl LoanService {
                 }
 
                 if is_disposed.unwrap_or(false) {
-                    return Err(AppError::BadRequest("Item is disposed and cannot be loaned".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Item is disposed and cannot be loaned".to_string(),
+                    ));
                 }
 
                 // 貸出記録を作成
@@ -219,7 +220,9 @@ impl LoanService {
                     ORDER BY l.created_at DESC
                     LIMIT ${} OFFSET ${}
                     "#,
-                    where_clause, param_index, param_index + 1
+                    where_clause,
+                    param_index,
+                    param_index + 1
                 );
 
                 let count_query_str = format!(
@@ -243,7 +246,8 @@ impl LoanService {
                 query = query.bind(limit).bind(offset);
 
                 let rows = query.fetch_all(pool).await?;
-                let loans: Vec<LoanWithItem> = rows.into_iter()
+                let loans: Vec<LoanWithItem> = rows
+                    .into_iter()
                     .map(|row| self.row_to_loan_with_item_postgres(row))
                     .collect();
 
@@ -259,7 +263,10 @@ impl LoanService {
             }
             DatabasePool::Sqlite(pool) => {
                 // フィルタリング機能を実装
-                let (loans, total) = if item_id.is_none() && student_number.is_none() && active_only.is_none() {
+                let (loans, total) = if item_id.is_none()
+                    && student_number.is_none()
+                    && active_only.is_none()
+                {
                     // フィルターなし
                     let rows = sqlx::query(
                         r#"
@@ -278,7 +285,8 @@ impl LoanService {
                     .fetch_all(pool)
                     .await?;
 
-                    let loans: Vec<LoanWithItem> = rows.into_iter()
+                    let loans: Vec<LoanWithItem> = rows
+                        .into_iter()
                         .map(|row| self.row_to_loan_with_item(row))
                         .collect();
 
@@ -355,7 +363,8 @@ impl LoanService {
                     query = query.bind(limit).bind(offset);
 
                     let rows = query.fetch_all(pool).await?;
-                    let loans: Vec<LoanWithItem> = rows.into_iter()
+                    let loans: Vec<LoanWithItem> = rows
+                        .into_iter()
                         .map(|row| self.row_to_loan_with_item(row))
                         .collect();
 
@@ -379,20 +388,21 @@ impl LoanService {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 // 貸出記録が存在し、未返却かチェック
-                let loan_row = sqlx::query(
-                    "SELECT id, item_id, return_date FROM loans WHERE id = $1"
-                )
-                .bind(id)
-                .fetch_optional(pool)
-                .await?;
+                let loan_row =
+                    sqlx::query("SELECT id, item_id, return_date FROM loans WHERE id = $1")
+                        .bind(id)
+                        .fetch_optional(pool)
+                        .await?;
 
-                let loan_row = loan_row.ok_or_else(||
-                    AppError::NotFound(format!("Loan with id {} not found", id))
-                )?;
+                let loan_row = loan_row
+                    .ok_or_else(|| AppError::NotFound(format!("Loan with id {} not found", id)))?;
 
-                let return_date_check: Option<chrono::DateTime<chrono::Utc>> = loan_row.try_get("return_date").unwrap_or(None);
+                let return_date_check: Option<chrono::DateTime<chrono::Utc>> =
+                    loan_row.try_get("return_date").unwrap_or(None);
                 if return_date_check.is_some() {
-                    return Err(AppError::BadRequest("Loan has already been returned".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Loan has already been returned".to_string(),
+                    ));
                 }
 
                 let item_id: i64 = loan_row.get("item_id");
@@ -411,33 +421,32 @@ impl LoanService {
                 .await?;
 
                 // 物品の貸出状態を更新
-                sqlx::query(
-                    "UPDATE items SET is_on_loan = false, updated_at = $1 WHERE id = $2"
-                )
-                .bind(now)
-                .bind(item_id)
-                .execute(pool)
-                .await?;
+                sqlx::query("UPDATE items SET is_on_loan = false, updated_at = $1 WHERE id = $2")
+                    .bind(now)
+                    .bind(item_id)
+                    .execute(pool)
+                    .await?;
 
                 // 更新された貸出記録を取得
                 self.get_loan(id).await
             }
             DatabasePool::Sqlite(pool) => {
                 // 貸出記録が存在し、未返却かチェック
-                let loan_row = sqlx::query(
-                    "SELECT id, item_id, return_date FROM loans WHERE id = ?1"
-                )
-                .bind(id)
-                .fetch_optional(pool)
-                .await?;
+                let loan_row =
+                    sqlx::query("SELECT id, item_id, return_date FROM loans WHERE id = ?1")
+                        .bind(id)
+                        .fetch_optional(pool)
+                        .await?;
 
-                let loan_row = loan_row.ok_or_else(||
-                    AppError::NotFound(format!("Loan with id {} not found", id))
-                )?;
+                let loan_row = loan_row
+                    .ok_or_else(|| AppError::NotFound(format!("Loan with id {} not found", id)))?;
 
-                let return_date_check: Option<chrono::NaiveDateTime> = loan_row.try_get("return_date").unwrap_or(None);
+                let return_date_check: Option<chrono::NaiveDateTime> =
+                    loan_row.try_get("return_date").unwrap_or(None);
                 if return_date_check.is_some() {
-                    return Err(AppError::BadRequest("Loan has already been returned".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Loan has already been returned".to_string(),
+                    ));
                 }
 
                 let return_date = req.return_date.unwrap_or_else(|| Utc::now());
@@ -454,8 +463,9 @@ impl LoanService {
                 .execute(pool)
                 .await?;
 
-                let item_id: i64 = loan_row.try_get("item_id")
-                    .map_err(|_| AppError::InternalServerError("Loan record missing item_id".to_string()))?;
+                let item_id: i64 = loan_row.try_get("item_id").map_err(|_| {
+                    AppError::InternalServerError("Loan record missing item_id".to_string())
+                })?;
 
                 // 物品の貸出状態を更新
                 sqlx::query!(

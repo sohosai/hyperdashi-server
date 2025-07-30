@@ -9,7 +9,7 @@ use validator::Validate;
 
 use crate::error::AppResult;
 use crate::models::{CreateLoanRequest, Loan, LoansListResponse, ReturnLoanRequest};
-use crate::services::{ItemService, LoanService, StorageService, CableColorService};
+use crate::services::{CableColorService, ItemService, LoanService, StorageService};
 
 #[derive(Deserialize)]
 pub struct LoansQuery {
@@ -31,7 +31,12 @@ fn default_per_page() -> u32 {
 }
 
 pub async fn list_loans(
-    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Query(params): Query<LoansQuery>,
 ) -> AppResult<Json<LoansListResponse>> {
     let response = loan_service
@@ -48,7 +53,12 @@ pub async fn list_loans(
 }
 
 pub async fn get_loan(
-    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<Loan>> {
     let loan = loan_service.get_loan(id).await?;
@@ -56,7 +66,12 @@ pub async fn get_loan(
 }
 
 pub async fn create_loan(
-    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Json(req): Json<CreateLoanRequest>,
 ) -> AppResult<(StatusCode, Json<Loan>)> {
     req.validate()
@@ -67,7 +82,12 @@ pub async fn create_loan(
 }
 
 pub async fn return_loan(
-    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     Path(id): Path<i64>,
     Json(req): Json<ReturnLoanRequest>,
 ) -> AppResult<Json<Loan>> {

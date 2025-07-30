@@ -74,10 +74,7 @@ impl IntoResponse for AppError {
             }
             AppError::InternalServer(ref msg) => {
                 tracing::error!("Internal server error: {}", msg);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    msg.clone(),
-                )
+                (StatusCode::INTERNAL_SERVER_ERROR, msg.clone())
             }
         };
 

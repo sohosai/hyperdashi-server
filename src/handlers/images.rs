@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::error::AppResult;
-use crate::services::{ItemService, LoanService, StorageService, CableColorService};
+use crate::services::{CableColorService, ItemService, LoanService, StorageService};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImageUploadResponse {
@@ -17,7 +17,12 @@ pub struct ImageUploadResponse {
 }
 
 pub async fn upload_image(
-    State((storage_service, _cable_color_service, _item_service, _loan_service)): State<(Arc<StorageService>, Arc<CableColorService>, Arc<ItemService>, Arc<LoanService>)>,
+    State((storage_service, _cable_color_service, _item_service, _loan_service)): State<(
+        Arc<StorageService>,
+        Arc<CableColorService>,
+        Arc<ItemService>,
+        Arc<LoanService>,
+    )>,
     mut multipart: Multipart,
 ) -> AppResult<(StatusCode, Json<ImageUploadResponse>)> {
     tracing::info!("Starting image upload process");
@@ -30,24 +35,38 @@ pub async fn upload_image(
         tracing::debug!("Processing multipart field: '{}'", name);
 
         if name == "image" {
-            let filename = field.file_name()
+            let filename = field
+                .file_name()
                 .unwrap_or("image.jpg") // デフォルトファイル名を提供
                 .to_string();
 
-            let content_type = field.content_type()
+            let content_type = field
+                .content_type()
                 .unwrap_or("application/octet-stream")
                 .to_string();
 
-            tracing::info!("Received file: filename='{}', content_type='{}'", filename, content_type);
+            tracing::info!(
+                "Received file: filename='{}', content_type='{}'",
+                filename,
+                content_type
+            );
 
             let content_type_valid = is_image_content_type(&content_type);
             let extension_valid = is_image_extension(&filename);
 
-            tracing::info!("Validation: content_type_valid={}, extension_valid={}", content_type_valid, extension_valid);
+            tracing::info!(
+                "Validation: content_type_valid={}, extension_valid={}",
+                content_type_valid,
+                extension_valid
+            );
 
             // 画像ファイルの検証（Content-Typeまたは拡張子で判定）
             if !content_type_valid && !extension_valid {
-                tracing::error!("File rejected: content-type='{}', filename='{}'", content_type, filename);
+                tracing::error!(
+                    "File rejected: content-type='{}', filename='{}'",
+                    content_type,
+                    filename
+                );
                 return Err(crate::error::AppError::BadRequest(
                     format!("Only image files are allowed (JPEG, PNG, GIF, WebP). Got content-type: {}, filename: {}", content_type, filename)
                 ));
@@ -66,10 +85,15 @@ pub async fn upload_image(
                 // メモリ使用量制限のため、チャンクごとにサイズチェック
                 let max_file_size = storage_service.get_max_file_size_bytes();
                 if data.len() > max_file_size {
-                    tracing::error!("File size too large during chunk reading: {} > {}", data.len(), max_file_size);
-                    return Err(crate::error::AppError::BadRequest(
-                        format!("File size exceeds {}MB limit", max_file_size / (1024 * 1024))
-                    ));
+                    tracing::error!(
+                        "File size too large during chunk reading: {} > {}",
+                        data.len(),
+                        max_file_size
+                    );
+                    return Err(crate::error::AppError::BadRequest(format!(
+                        "File size exceeds {}MB limit",
+                        max_file_size / (1024 * 1024)
+                    )));
                 }
             }
 
@@ -81,7 +105,9 @@ pub async fn upload_image(
 
             // ストレージにアップロード
             tracing::info!("Starting storage upload...");
-            let url = storage_service.upload(data.to_vec(), &unique_filename, &content_type).await
+            let url = storage_service
+                .upload(data.to_vec(), &unique_filename, &content_type)
+                .await
                 .map_err(|e| {
                     tracing::error!("Storage upload failed: {}", e);
                     e
@@ -89,20 +115,26 @@ pub async fn upload_image(
 
             tracing::info!("Upload successful! URL: {}", url);
 
-            return Ok((StatusCode::CREATED, Json(ImageUploadResponse {
-                url,
-                filename: unique_filename,
-                size: data.len(),
-            })));
+            return Ok((
+                StatusCode::CREATED,
+                Json(ImageUploadResponse {
+                    url,
+                    filename: unique_filename,
+                    size: data.len(),
+                }),
+            ));
         }
     }
 
     tracing::error!("No image field found in multipart data");
-    Err(crate::error::AppError::BadRequest("No image field found in multipart data".to_string()))
+    Err(crate::error::AppError::BadRequest(
+        "No image field found in multipart data".to_string(),
+    ))
 }
 
 fn is_image_content_type(content_type: &str) -> bool {
-    let is_valid = matches!(content_type,
+    let is_valid = matches!(
+        content_type,
         "image/jpeg" | "image/jpg" | "image/png" | "image/gif" | "image/webp" |
         "image/pjpeg" | // IE用JPEG
         "application/octet-stream" // ブラウザによってはこれで送信される

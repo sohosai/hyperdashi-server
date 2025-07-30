@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use validator::Validate;
 
-use crate::models::{Container, ContainerWithItemCount, CreateContainerRequest, UpdateContainerRequest};
+use crate::models::{
+    Container, ContainerWithItemCount, CreateContainerRequest, UpdateContainerRequest,
+};
 use crate::services::ContainerService;
 use crate::ContainerAppState;
 
@@ -77,7 +79,10 @@ pub async fn container_list(
     let location_filter = query.location.as_deref();
     let include_disposed = query.include_disposed.unwrap_or(false);
 
-    match container_service.list_containers(location_filter, include_disposed).await {
+    match container_service
+        .list_containers(location_filter, include_disposed)
+        .await
+    {
         Ok(containers) => Ok(Json(ListContainersResponse { containers })),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -118,18 +123,24 @@ pub async fn containers_by_location(
 ) -> Result<Json<ListContainersResponse>, StatusCode> {
     let container_service = ContainerService::new(state.db.clone());
 
-    match container_service.get_containers_by_location(&location).await {
+    match container_service
+        .get_containers_by_location(&location)
+        .await
+    {
         Ok(containers) => {
-            let containers_with_count = containers.into_iter().map(|container| {
-                ContainerWithItemCount {
-                    container,
-                    item_count: 0, // For this endpoint, we don't calculate item count
-                }
-            }).collect();
+            let containers_with_count = containers
+                .into_iter()
+                .map(|container| {
+                    ContainerWithItemCount {
+                        container,
+                        item_count: 0, // For this endpoint, we don't calculate item count
+                    }
+                })
+                .collect();
             Ok(Json(ListContainersResponse {
-                containers: containers_with_count
+                containers: containers_with_count,
             }))
-        },
+        }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

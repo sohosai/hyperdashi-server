@@ -115,4 +115,3 @@ pub struct ItemsListResponse {
     pub page: u32,
     pub per_page: u32,
 }
-

@@ -75,7 +75,7 @@ impl Config {
                 Environment::default()
                     .try_parsing(true)
                     .separator("_")
-                    .list_separator(" ")
+                    .list_separator(" "),
             )
             .build()?;
 
@@ -87,19 +87,17 @@ impl Config {
         // Load .env file if it exists
         dotenvy::dotenv().ok();
 
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "sqlite://hyperdashi.db".to_string());
+        let database_url =
+            env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://hyperdashi.db".to_string());
 
-        let server_host = env::var("SERVER_HOST")
-            .unwrap_or_else(|_| "127.0.0.1".to_string());
+        let server_host = env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 
         let server_port = env::var("SERVER_PORT")
             .unwrap_or_else(|_| "8080".to_string())
             .parse::<u16>()
             .unwrap_or(8080);
 
-        let storage_type = env::var("STORAGE_TYPE")
-            .unwrap_or_else(|_| "local".to_string());
+        let storage_type = env::var("STORAGE_TYPE").unwrap_or_else(|_| "local".to_string());
 
         let max_file_size_mb = env::var("STORAGE_MAX_FILE_SIZE_MB")
             .ok()
@@ -128,8 +126,8 @@ impl Config {
                 }
             }
             _ => {
-                let path = env::var("LOCAL_STORAGE_PATH")
-                    .unwrap_or_else(|_| "./uploads".to_string());
+                let path =
+                    env::var("LOCAL_STORAGE_PATH").unwrap_or_else(|_| "./uploads".to_string());
 
                 StorageConfig {
                     storage_type: StorageType::Local,

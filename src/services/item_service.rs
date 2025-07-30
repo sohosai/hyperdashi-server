@@ -16,14 +16,20 @@ impl ItemService {
     pub async fn create_item(&self, req: CreateItemRequest) -> AppResult<Item> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
-                let connection_names = req.connection_names
+                let connection_names = req
+                    .connection_names
                     .map(|v| serde_json::to_string(&v).unwrap_or_default());
-                let cable_color_pattern = req.cable_color_pattern
+                let cable_color_pattern = req
+                    .cable_color_pattern
                     .map(|v| serde_json::to_string(&v).unwrap_or_default());
                 let storage_location = req.storage_location;
                 let is_depreciation_target = req.is_depreciation_target.unwrap_or(false);
 
-                let storage_type = req.storage_type.as_ref().unwrap_or(&"location".to_string()).clone();
+                let storage_type = req
+                    .storage_type
+                    .as_ref()
+                    .unwrap_or(&"location".to_string())
+                    .clone();
 
                 let result = sqlx::query(
                     r#"
@@ -57,14 +63,20 @@ impl ItemService {
                 self.get_item(id).await
             }
             DatabasePool::Sqlite(pool) => {
-                let connection_names = req.connection_names
+                let connection_names = req
+                    .connection_names
                     .map(|v| serde_json::to_string(&v).unwrap_or_default());
-                let cable_color_pattern = req.cable_color_pattern
+                let cable_color_pattern = req
+                    .cable_color_pattern
                     .map(|v| serde_json::to_string(&v).unwrap_or_default());
                 let storage_location = req.storage_location;
                 let is_depreciation_target = req.is_depreciation_target.unwrap_or(false);
 
-                let storage_type = req.storage_type.as_ref().unwrap_or(&"location".to_string()).clone();
+                let storage_type = req
+                    .storage_type
+                    .as_ref()
+                    .unwrap_or(&"location".to_string())
+                    .clone();
 
                 let result = sqlx::query!(
                     r#"
@@ -257,10 +269,13 @@ impl ItemService {
                     ORDER BY created_at DESC
                     LIMIT ${} OFFSET ${}
                     "#,
-                    where_clause, param_index, param_index+1
+                    where_clause,
+                    param_index,
+                    param_index + 1
                 );
 
-                let count_query_str = format!("SELECT COUNT(*) as count FROM items {}", where_clause);
+                let count_query_str =
+                    format!("SELECT COUNT(*) as count FROM items {}", where_clause);
 
                 // パラメーターをバインド
                 let mut query = sqlx::query(&query_str);
@@ -269,8 +284,16 @@ impl ItemService {
                 // 検索条件
                 if let Some(search_term) = &search {
                     let search_pattern = format!("%{}%", search_term);
-                    query = query.bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern.clone());
-                    count_query = count_query.bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern);
+                    query = query
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone());
+                    count_query = count_query
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern);
                 }
 
                 // 貸出状態フィルター
@@ -301,7 +324,8 @@ impl ItemService {
                 query = query.bind(limit).bind(offset);
 
                 let rows = query.fetch_all(pool).await?;
-                let items: Vec<Item> = rows.into_iter()
+                let items: Vec<Item> = rows
+                    .into_iter()
                     .map(|row| self.row_to_item_postgres(row))
                     .collect();
 
@@ -321,7 +345,10 @@ impl ItemService {
 
                 // 検索条件
                 if search.is_some() {
-                    where_conditions.push("(name LIKE ? OR label_id LIKE ? OR model_number LIKE ? OR remarks LIKE ?)".to_string());
+                    where_conditions.push(
+                        "(name LIKE ? OR label_id LIKE ? OR model_number LIKE ? OR remarks LIKE ?)"
+                            .to_string(),
+                    );
                 }
 
                 // 貸出状態フィルター
@@ -351,7 +378,12 @@ impl ItemService {
                 };
 
                 // シンプルなアプローチで実装（フィルター条件ごとに分岐）
-                let (items, total) = if search.is_none() && is_on_loan.is_none() && is_disposed.is_none() && container_id.is_none() && storage_type.is_none() {
+                let (items, total) = if search.is_none()
+                    && is_on_loan.is_none()
+                    && is_disposed.is_none()
+                    && container_id.is_none()
+                    && storage_type.is_none()
+                {
                     // フィルターなし
                     let rows = sqlx::query(
                         r#"
@@ -371,9 +403,8 @@ impl ItemService {
                     .fetch_all(pool)
                     .await?;
 
-                    let items: Vec<Item> = rows.into_iter()
-                        .map(|row| self.row_to_item(row))
-                        .collect();
+                    let items: Vec<Item> =
+                        rows.into_iter().map(|row| self.row_to_item(row)).collect();
 
                     let count_row = sqlx::query("SELECT COUNT(*) as count FROM items")
                         .fetch_one(pool)
@@ -399,7 +430,8 @@ impl ItemService {
                         where_clause
                     );
 
-                    let count_query_str = format!("SELECT COUNT(*) as count FROM items {}", where_clause);
+                    let count_query_str =
+                        format!("SELECT COUNT(*) as count FROM items {}", where_clause);
 
                     // パラメーターをバインドするためのヘルパー関数
                     let mut query = sqlx::query(&query_str);
@@ -408,8 +440,16 @@ impl ItemService {
                     // 検索条件
                     if let Some(search_term) = &search {
                         let search_pattern = format!("%{}%", search_term);
-                        query = query.bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern.clone());
-                        count_query = count_query.bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern.clone()).bind(search_pattern);
+                        query = query
+                            .bind(search_pattern.clone())
+                            .bind(search_pattern.clone())
+                            .bind(search_pattern.clone())
+                            .bind(search_pattern.clone());
+                        count_query = count_query
+                            .bind(search_pattern.clone())
+                            .bind(search_pattern.clone())
+                            .bind(search_pattern.clone())
+                            .bind(search_pattern);
                     }
 
                     // 貸出状態フィルター
@@ -442,9 +482,8 @@ impl ItemService {
                     query = query.bind(limit).bind(offset);
 
                     let rows = query.fetch_all(pool).await?;
-                    let items: Vec<Item> = rows.into_iter()
-                        .map(|row| self.row_to_item(row))
-                        .collect();
+                    let items: Vec<Item> =
+                        rows.into_iter().map(|row| self.row_to_item(row)).collect();
 
                     let count_row = count_query.fetch_one(pool).await?;
                     let total: i64 = count_row.get("count");
@@ -469,17 +508,29 @@ impl ItemService {
                 let _existing_item = self.get_item(id).await?;
 
                 // JSON配列フィールドをシリアライズ
-                let connection_names_json = req.connection_names
+                let connection_names_json = req
+                    .connection_names
                     .as_ref()
                     .map(|names| serde_json::to_string(names))
                     .transpose()
-                    .map_err(|e| AppError::InternalServerError(format!("Failed to serialize connection_names: {}", e)))?;
+                    .map_err(|e| {
+                        AppError::InternalServerError(format!(
+                            "Failed to serialize connection_names: {}",
+                            e
+                        ))
+                    })?;
 
-                let cable_color_pattern_json = req.cable_color_pattern
+                let cable_color_pattern_json = req
+                    .cable_color_pattern
                     .as_ref()
                     .map(|pattern| serde_json::to_string(pattern))
                     .transpose()
-                    .map_err(|e| AppError::InternalServerError(format!("Failed to serialize cable_color_pattern: {}", e)))?;
+                    .map_err(|e| {
+                        AppError::InternalServerError(format!(
+                            "Failed to serialize cable_color_pattern: {}",
+                            e
+                        ))
+                    })?;
 
                 let storage_location = req.storage_location;
 
@@ -535,17 +586,29 @@ impl ItemService {
                 let _existing_item = self.get_item(id).await?;
 
                 // JSON配列フィールドをシリアライズ
-                let connection_names_json = req.connection_names
+                let connection_names_json = req
+                    .connection_names
                     .as_ref()
                     .map(|names| serde_json::to_string(names))
                     .transpose()
-                    .map_err(|e| AppError::InternalServerError(format!("Failed to serialize connection_names: {}", e)))?;
+                    .map_err(|e| {
+                        AppError::InternalServerError(format!(
+                            "Failed to serialize connection_names: {}",
+                            e
+                        ))
+                    })?;
 
-                let cable_color_pattern_json = req.cable_color_pattern
+                let cable_color_pattern_json = req
+                    .cable_color_pattern
                     .as_ref()
                     .map(|pattern| serde_json::to_string(pattern))
                     .transpose()
-                    .map_err(|e| AppError::InternalServerError(format!("Failed to serialize cable_color_pattern: {}", e)))?;
+                    .map_err(|e| {
+                        AppError::InternalServerError(format!(
+                            "Failed to serialize cable_color_pattern: {}",
+                            e
+                        ))
+                    })?;
 
                 let storage_location = req.storage_location;
 
@@ -606,7 +669,9 @@ impl ItemService {
                 let item = self.get_item(id).await?;
 
                 if item.is_on_loan.unwrap_or(false) {
-                    return Err(AppError::BadRequest("Cannot delete item that is currently on loan".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Cannot delete item that is currently on loan".to_string(),
+                    ));
                 }
 
                 // アクティブな貸出がないかチェック
@@ -619,7 +684,9 @@ impl ItemService {
 
                 let count: i64 = active_loans.get("count");
                 if count > 0 {
-                    return Err(AppError::BadRequest("Cannot delete item with active loans".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Cannot delete item with active loans".to_string(),
+                    ));
                 }
 
                 let result = sqlx::query("DELETE FROM items WHERE id = $1")
@@ -637,7 +704,9 @@ impl ItemService {
                 let item = self.get_item(id).await?;
 
                 if item.is_on_loan.unwrap_or(false) {
-                    return Err(AppError::BadRequest("Cannot delete item that is currently on loan".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Cannot delete item that is currently on loan".to_string(),
+                    ));
                 }
 
                 // アクティブな貸出がないかチェック
@@ -649,7 +718,9 @@ impl ItemService {
                 .await?;
 
                 if active_loans.count > 0 {
-                    return Err(AppError::BadRequest("Cannot delete item with active loans".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Cannot delete item with active loans".to_string(),
+                    ));
                 }
 
                 let result = sqlx::query("DELETE FROM items WHERE id = ?1")
@@ -669,11 +740,13 @@ impl ItemService {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let now = Utc::now();
-                let result = sqlx::query("UPDATE items SET is_disposed = true, updated_at = $2 WHERE id = $1")
-                    .bind(id)
-                    .bind(now)
-                    .execute(pool)
-                    .await?;
+                let result = sqlx::query(
+                    "UPDATE items SET is_disposed = true, updated_at = $2 WHERE id = $1",
+                )
+                .bind(id)
+                .bind(now)
+                .execute(pool)
+                .await?;
 
                 if result.rows_affected() == 0 {
                     return Err(AppError::NotFound(format!("Item with id {} not found", id)));
@@ -683,11 +756,12 @@ impl ItemService {
             }
             DatabasePool::Sqlite(pool) => {
                 let now = Utc::now();
-                let result = sqlx::query("UPDATE items SET is_disposed = 1, updated_at = ?2 WHERE id = ?1")
-                    .bind(id)
-                    .bind(now)
-                    .execute(pool)
-                    .await?;
+                let result =
+                    sqlx::query("UPDATE items SET is_disposed = 1, updated_at = ?2 WHERE id = ?1")
+                        .bind(id)
+                        .bind(now)
+                        .execute(pool)
+                        .await?;
 
                 if result.rows_affected() == 0 {
                     return Err(AppError::NotFound(format!("Item with id {} not found", id)));
@@ -702,11 +776,13 @@ impl ItemService {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let now = Utc::now();
-                let result = sqlx::query("UPDATE items SET is_disposed = false, updated_at = $2 WHERE id = $1")
-                    .bind(id)
-                    .bind(now)
-                    .execute(pool)
-                    .await?;
+                let result = sqlx::query(
+                    "UPDATE items SET is_disposed = false, updated_at = $2 WHERE id = $1",
+                )
+                .bind(id)
+                .bind(now)
+                .execute(pool)
+                .await?;
 
                 if result.rows_affected() == 0 {
                     return Err(AppError::NotFound(format!("Item with id {} not found", id)));
@@ -716,11 +792,12 @@ impl ItemService {
             }
             DatabasePool::Sqlite(pool) => {
                 let now = Utc::now();
-                let result = sqlx::query("UPDATE items SET is_disposed = 0, updated_at = ?2 WHERE id = ?1")
-                    .bind(id)
-                    .bind(now)
-                    .execute(pool)
-                    .await?;
+                let result =
+                    sqlx::query("UPDATE items SET is_disposed = 0, updated_at = ?2 WHERE id = ?1")
+                        .bind(id)
+                        .bind(now)
+                        .execute(pool)
+                        .await?;
 
                 if result.rows_affected() == 0 {
                     return Err(AppError::NotFound(format!("Item with id {} not found", id)));
@@ -740,8 +817,12 @@ impl ItemService {
 
                 let mut suggestions = Vec::new();
                 for row in rows {
-                    if let Some(connection_names_str) = row.get::<Option<String>, _>("connection_names") {
-                        if let Ok(names) = serde_json::from_str::<Vec<String>>(&connection_names_str) {
+                    if let Some(connection_names_str) =
+                        row.get::<Option<String>, _>("connection_names")
+                    {
+                        if let Ok(names) =
+                            serde_json::from_str::<Vec<String>>(&connection_names_str)
+                        {
                             suggestions.extend(names);
                         }
                     }
@@ -820,14 +901,17 @@ impl ItemService {
                 let mut tx = pool.begin().await?;
 
                 // Get current counter value
-                let counter_row = sqlx::query("SELECT current_value FROM label_counter WHERE id = 1")
-                    .fetch_one(&mut *tx)
-                    .await?;
+                let counter_row =
+                    sqlx::query("SELECT current_value FROM label_counter WHERE id = 1")
+                        .fetch_one(&mut *tx)
+                        .await?;
                 let current_value: i64 = counter_row.get("current_value");
 
                 // Check we have enough available IDs (max ZZZZ = 1,679,615)
                 if current_value + quantity as i64 > 1679615 {
-                    return Err(AppError::BadRequest("Not enough label IDs available".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Not enough label IDs available".to_string(),
+                    ));
                 }
 
                 // Generate new label IDs in base-36 format
@@ -835,7 +919,12 @@ impl ItemService {
                 for i in 1..=quantity {
                     let new_number = current_value + i as i64;
                     // Convert to base-36 and pad to 4 characters
-                    let label_id = format!("{:0>4}", radix_fmt::radix_36(new_number as u32).to_string().to_uppercase());
+                    let label_id = format!(
+                        "{:0>4}",
+                        radix_fmt::radix_36(new_number as u32)
+                            .to_string()
+                            .to_uppercase()
+                    );
                     label_ids.push(label_id);
                 }
 
@@ -855,14 +944,17 @@ impl ItemService {
                 let mut tx = pool.begin().await?;
 
                 // Get current counter value
-                let counter_row = sqlx::query("SELECT current_value FROM label_counter WHERE id = 1")
-                    .fetch_one(&mut *tx)
-                    .await?;
+                let counter_row =
+                    sqlx::query("SELECT current_value FROM label_counter WHERE id = 1")
+                        .fetch_one(&mut *tx)
+                        .await?;
                 let current_value: i64 = counter_row.get("current_value");
 
                 // Check we have enough available IDs (max ZZZZ = 1,679,615)
                 if current_value + quantity as i64 > 1679615 {
-                    return Err(AppError::BadRequest("Not enough label IDs available".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Not enough label IDs available".to_string(),
+                    ));
                 }
 
                 // Generate new label IDs in base-36 format
@@ -870,7 +962,12 @@ impl ItemService {
                 for i in 1..=quantity {
                     let new_number = current_value + i as i64;
                     // Convert to base-36 and pad to 4 characters
-                    let label_id = format!("{:0>4}", radix_fmt::radix_36(new_number as u32).to_string().to_uppercase());
+                    let label_id = format!(
+                        "{:0>4}",
+                        radix_fmt::radix_36(new_number as u32)
+                            .to_string()
+                            .to_uppercase()
+                    );
                     label_ids.push(label_id);
                 }
 
@@ -895,9 +992,10 @@ impl ItemService {
                 let mut all_labels = Vec::new();
 
                 // Get used labels from database
-                let used_labels_rows = sqlx::query("SELECT label_id, name FROM items WHERE LENGTH(label_id) = 4")
-                    .fetch_all(pool)
-                    .await?;
+                let used_labels_rows =
+                    sqlx::query("SELECT label_id, name FROM items WHERE LENGTH(label_id) = 4")
+                        .fetch_all(pool)
+                        .await?;
 
                 let mut used_labels_map = std::collections::HashMap::new();
                 for row in used_labels_rows {
@@ -907,8 +1005,10 @@ impl ItemService {
                 }
 
                 // Generate all possible labels and check if they're used (0 to ZZZZ in base-36)
-                for i in 0..=1679615u32 {  // 36^4 - 1
-                    let label_id = format!("{:0>4}", radix_fmt::radix_36(i).to_string().to_uppercase());
+                for i in 0..=1679615u32 {
+                    // 36^4 - 1
+                    let label_id =
+                        format!("{:0>4}", radix_fmt::radix_36(i).to_string().to_uppercase());
                     let label_info = crate::handlers::labels::LabelInfo {
                         id: label_id.clone(),
                         used: used_labels_map.contains_key(&label_id),
@@ -924,9 +1024,10 @@ impl ItemService {
                 let mut all_labels = Vec::new();
 
                 // Get used labels from database
-                let used_labels_rows = sqlx::query("SELECT label_id, name FROM items WHERE LENGTH(label_id) = 4")
-                    .fetch_all(pool)
-                    .await?;
+                let used_labels_rows =
+                    sqlx::query("SELECT label_id, name FROM items WHERE LENGTH(label_id) = 4")
+                        .fetch_all(pool)
+                        .await?;
 
                 let mut used_labels_map = std::collections::HashMap::new();
                 for row in used_labels_rows {
@@ -936,8 +1037,10 @@ impl ItemService {
                 }
 
                 // Generate all possible labels and check if they're used (0 to ZZZZ in base-36)
-                for i in 0..=1679615u32 {  // 36^4 - 1
-                    let label_id = format!("{:0>4}", radix_fmt::radix_36(i).to_string().to_uppercase());
+                for i in 0..=1679615u32 {
+                    // 36^4 - 1
+                    let label_id =
+                        format!("{:0>4}", radix_fmt::radix_36(i).to_string().to_uppercase());
                     let label_info = crate::handlers::labels::LabelInfo {
                         id: label_id.clone(),
                         used: used_labels_map.contains_key(&label_id),
@@ -952,9 +1055,11 @@ impl ItemService {
     }
 
     fn row_to_item(&self, row: sqlx::sqlite::SqliteRow) -> Item {
-        let connection_names: Option<Vec<String>> = row.get::<Option<String>, _>("connection_names")
+        let connection_names: Option<Vec<String>> = row
+            .get::<Option<String>, _>("connection_names")
             .and_then(|s| serde_json::from_str(&s).ok());
-        let cable_color_pattern: Option<Vec<String>> = row.get::<Option<String>, _>("cable_color_pattern")
+        let cable_color_pattern: Option<Vec<String>> = row
+            .get::<Option<String>, _>("cable_color_pattern")
             .and_then(|s| serde_json::from_str(&s).ok());
         let storage_location: Option<String> = row.get::<Option<String>, _>("storage_location");
 
@@ -972,7 +1077,9 @@ impl ItemService {
             cable_color_pattern,
             storage_location,
             container_id: row.get("container_id"),
-            storage_type: row.get::<Option<String>, _>("storage_type").unwrap_or_else(|| "location".to_string()),
+            storage_type: row
+                .get::<Option<String>, _>("storage_type")
+                .unwrap_or_else(|| "location".to_string()),
             is_on_loan: row.get("is_on_loan"),
             qr_code_type: row.get("qr_code_type"),
             is_disposed: row.get("is_disposed"),
@@ -983,9 +1090,11 @@ impl ItemService {
     }
 
     fn row_to_item_postgres(&self, row: sqlx::postgres::PgRow) -> Item {
-        let connection_names: Option<Vec<String>> = row.get::<Option<String>, _>("connection_names")
+        let connection_names: Option<Vec<String>> = row
+            .get::<Option<String>, _>("connection_names")
             .and_then(|s| serde_json::from_str(&s).ok());
-        let cable_color_pattern: Option<Vec<String>> = row.get::<Option<String>, _>("cable_color_pattern")
+        let cable_color_pattern: Option<Vec<String>> = row
+            .get::<Option<String>, _>("cable_color_pattern")
             .and_then(|s| serde_json::from_str(&s).ok());
         let storage_location: Option<String> = row.get::<Option<String>, _>("storage_location");
 
@@ -1003,7 +1112,9 @@ impl ItemService {
             cable_color_pattern,
             storage_location,
             container_id: row.get("container_id"),
-            storage_type: row.get::<Option<String>, _>("storage_type").unwrap_or_else(|| "location".to_string()),
+            storage_type: row
+                .get::<Option<String>, _>("storage_type")
+                .unwrap_or_else(|| "location".to_string()),
             is_on_loan: row.get("is_on_loan"),
             qr_code_type: row.get("qr_code_type"),
             is_disposed: row.get("is_disposed"),

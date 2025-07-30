@@ -29,7 +29,12 @@ impl StorageService {
         }
     }
 
-    pub async fn upload(&self, data: Vec<u8>, filename: &str, content_type: &str) -> AppResult<String> {
+    pub async fn upload(
+        &self,
+        data: Vec<u8>,
+        filename: &str,
+        content_type: &str,
+    ) -> AppResult<String> {
         match self {
             StorageService::S3(storage) => storage.upload(data, filename, content_type).await,
             StorageService::Local(storage) => storage.upload(data, filename, content_type).await,
@@ -61,10 +66,11 @@ pub struct S3Storage {
 
 impl S3Storage {
     pub async fn new(config: &Config) -> AppResult<Self> {
-        let s3_config = config.storage.s3.as_ref()
-            .ok_or_else(|| AppError::ConfigError(
-                config::ConfigError::Message("S3 configuration not found".to_string())
-            ))?;
+        let s3_config = config.storage.s3.as_ref().ok_or_else(|| {
+            AppError::ConfigError(config::ConfigError::Message(
+                "S3 configuration not found".to_string(),
+            ))
+        })?;
 
         let mut aws_config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest());
 
@@ -89,9 +95,9 @@ impl S3Storage {
         let base_url = if let Ok(endpoint) = std::env::var("S3_ENDPOINT") {
             format!("{}/{}", endpoint, s3_config.bucket_name)
         } else {
-            format!("https://{}.s3.{}.amazonaws.com",
-                s3_config.bucket_name,
-                s3_config.region
+            format!(
+                "https://{}.s3.{}.amazonaws.com",
+                s3_config.bucket_name, s3_config.region
             )
         };
 
@@ -103,7 +109,12 @@ impl S3Storage {
         })
     }
 
-    pub async fn upload(&self, data: Vec<u8>, filename: &str, content_type: &str) -> AppResult<String> {
+    pub async fn upload(
+        &self,
+        data: Vec<u8>,
+        filename: &str,
+        content_type: &str,
+    ) -> AppResult<String> {
         let key = format!("images/{}/{}", Uuid::new_v4(), filename);
 
         self.client
@@ -124,7 +135,8 @@ impl S3Storage {
 
     pub async fn delete(&self, url: &str) -> AppResult<()> {
         // Extract key from URL
-        let key = url.strip_prefix(&format!("{}/", self.base_url))
+        let key = url
+            .strip_prefix(&format!("{}/", self.base_url))
             .ok_or_else(|| AppError::StorageError("Invalid S3 URL".to_string()))?;
 
         self.client
@@ -152,21 +164,27 @@ pub struct LocalStorage {
 
 impl LocalStorage {
     pub fn new(config: &Config) -> AppResult<Self> {
-        let local_config = config.storage.local.as_ref()
-            .ok_or_else(|| AppError::ConfigError(
-                config::ConfigError::Message("Local storage configuration not found".to_string())
-            ))?;
+        let local_config = config.storage.local.as_ref().ok_or_else(|| {
+            AppError::ConfigError(config::ConfigError::Message(
+                "Local storage configuration not found".to_string(),
+            ))
+        })?;
 
         let base_path = PathBuf::from(&local_config.path);
-        let base_url = format!("http://{}:{}/uploads",
-            config.server.host,
-            config.server.port
+        let base_url = format!(
+            "http://{}:{}/uploads",
+            config.server.host, config.server.port
         );
 
         // Ensure base directory exists
         if !base_path.exists() {
-            std::fs::create_dir_all(&base_path)
-                .map_err(|e| AppError::StorageError(format!("Failed to create base storage directory {}: {}", base_path.display(), e)))?;
+            std::fs::create_dir_all(&base_path).map_err(|e| {
+                AppError::StorageError(format!(
+                    "Failed to create base storage directory {}: {}",
+                    base_path.display(),
+                    e
+                ))
+            })?;
         }
 
         Ok(Self {
@@ -178,21 +196,36 @@ impl LocalStorage {
 
     async fn ensure_directory(&self, path: &Path) -> AppResult<()> {
         if !path.exists() {
-            fs::create_dir_all(path).await
-                .map_err(|e| AppError::StorageError(format!("Failed to create directory {}: {}", path.display(), e)))?;
+            fs::create_dir_all(path).await.map_err(|e| {
+                AppError::StorageError(format!(
+                    "Failed to create directory {}: {}",
+                    path.display(),
+                    e
+                ))
+            })?;
         }
         Ok(())
     }
 
-    pub async fn upload(&self, data: Vec<u8>, filename: &str, _content_type: &str) -> AppResult<String> {
+    pub async fn upload(
+        &self,
+        data: Vec<u8>,
+        filename: &str,
+        _content_type: &str,
+    ) -> AppResult<String> {
         let dir_name = Uuid::new_v4().to_string();
         let dir_path = self.base_path.join(&dir_name);
 
         self.ensure_directory(&dir_path).await?;
 
         let file_path = dir_path.join(filename);
-        fs::write(&file_path, data).await
-            .map_err(|e| AppError::StorageError(format!("Failed to write file {}: {}", file_path.display(), e)))?;
+        fs::write(&file_path, data).await.map_err(|e| {
+            AppError::StorageError(format!(
+                "Failed to write file {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
 
         let relative_path = format!("{}/{}", dir_name, filename);
         Ok(self.get_url(&relative_path))
@@ -200,7 +233,8 @@ impl LocalStorage {
 
     pub async fn delete(&self, url: &str) -> AppResult<()> {
         // Extract relative path from URL
-        let relative_path = url.strip_prefix(&format!("{}/", self.base_url))
+        let relative_path = url
+            .strip_prefix(&format!("{}/", self.base_url))
             .ok_or_else(|| AppError::StorageError("Invalid local storage URL".to_string()))?;
 
         let file_path = self.base_path.join(relative_path);

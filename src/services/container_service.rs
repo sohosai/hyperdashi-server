@@ -1,6 +1,8 @@
 use crate::db::DatabasePool;
 use crate::error::{AppError, AppResult};
-use crate::models::{Container, ContainerWithItemCount, CreateContainerRequest, UpdateContainerRequest};
+use crate::models::{
+    Container, ContainerWithItemCount, CreateContainerRequest, UpdateContainerRequest,
+};
 use crate::services::item_service::ItemService;
 use sqlx::{Row, Sqlite};
 
@@ -20,8 +22,9 @@ impl ContainerService {
             DatabasePool::Postgres(pool) => {
                 // Generate container ID using the same method as items
                 let container_ids = self.item_service.generate_label_ids(1).await?;
-                let container_id = container_ids.into_iter().next()
-                    .ok_or_else(|| AppError::InternalServerError("Failed to generate container ID".to_string()))?;
+                let container_id = container_ids.into_iter().next().ok_or_else(|| {
+                    AppError::InternalServerError("Failed to generate container ID".to_string())
+                })?;
 
                 let now = chrono::Utc::now();
 
@@ -47,8 +50,9 @@ impl ContainerService {
             DatabasePool::Sqlite(pool) => {
                 // Generate container ID using the same method as items
                 let container_ids = self.item_service.generate_label_ids(1).await?;
-                let container_id = container_ids.into_iter().next()
-                    .ok_or_else(|| AppError::InternalServerError("Failed to generate container ID".to_string()))?;
+                let container_id = container_ids.into_iter().next().ok_or_else(|| {
+                    AppError::InternalServerError("Failed to generate container ID".to_string())
+                })?;
 
                 let now = chrono::Utc::now();
 
@@ -69,7 +73,9 @@ impl ContainerService {
                 .await?;
 
                 if result.rows_affected() == 0 {
-                    return Err(AppError::InternalServerError("Failed to create container".to_string()));
+                    return Err(AppError::InternalServerError(
+                        "Failed to create container".to_string(),
+                    ));
                 }
 
                 Ok(Container {
@@ -128,8 +134,13 @@ impl ContainerService {
                             // Handle both TEXT and INTEGER types for is_disposed
                             if let Ok(int_val) = row.try_get::<Option<i32>, _>("is_disposed") {
                                 int_val.unwrap_or(0) != 0
-                            } else if let Ok(text_val) = row.try_get::<Option<String>, _>("is_disposed") {
-                                matches!(text_val.as_deref(), Some("1") | Some("true") | Some("TRUE"))
+                            } else if let Ok(text_val) =
+                                row.try_get::<Option<String>, _>("is_disposed")
+                            {
+                                matches!(
+                                    text_val.as_deref(),
+                                    Some("1") | Some("true") | Some("TRUE")
+                                )
                             } else {
                                 false
                             }
@@ -141,7 +152,11 @@ impl ContainerService {
         }
     }
 
-    pub async fn list_containers(&self, location_filter: Option<&str>, include_disposed: bool) -> AppResult<Vec<ContainerWithItemCount>> {
+    pub async fn list_containers(
+        &self,
+        location_filter: Option<&str>,
+        include_disposed: bool,
+    ) -> AppResult<Vec<ContainerWithItemCount>> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let mut query = String::from(
@@ -152,7 +167,7 @@ impl ContainerService {
                     FROM containers c
                     LEFT JOIN items i ON c.id = i.container_id AND i.storage_type = 'container' AND (i.is_disposed IS NULL OR i.is_disposed = false)
                     WHERE 1=1
-                    "#
+                    "#,
                 );
 
                 let mut param_index = 1;
@@ -177,8 +192,9 @@ impl ContainerService {
 
                 let rows = sqlx_query.fetch_all(pool).await?;
 
-                let containers = rows.into_iter().map(|row| {
-                    ContainerWithItemCount {
+                let containers = rows
+                    .into_iter()
+                    .map(|row| ContainerWithItemCount {
                         container: Container {
                             id: row.get("id"),
                             name: row.get("name"),
@@ -189,8 +205,8 @@ impl ContainerService {
                             is_disposed: row.get("is_disposed"),
                         },
                         item_count: row.get::<i64, _>("item_count"),
-                    }
-                }).collect();
+                    })
+                    .collect();
 
                 Ok(containers)
             }
@@ -203,7 +219,7 @@ impl ContainerService {
                     FROM containers c
                     LEFT JOIN items i ON c.id = i.container_id AND i.storage_type = 'container' AND (i.is_disposed IS NULL OR i.is_disposed = 0)
                     WHERE 1=1
-                    "#
+                    "#,
                 );
 
                 let mut params: Vec<String> = Vec::new();
@@ -226,36 +242,62 @@ impl ContainerService {
 
                 let rows = query_builder.fetch_all(pool).await?;
 
-                let containers = rows.into_iter().map(|row| {
-                    ContainerWithItemCount {
-                        container: Container {
-                            id: row.get::<Option<String>, _>("id").unwrap_or_default(),
-                            name: row.get::<Option<String>, _>("name").unwrap_or_default(),
-                            description: row.get("description"),
-                            location: row.get::<Option<String>, _>("location").unwrap_or_default(),
-                            created_at: row.get::<Option<chrono::NaiveDateTime>, _>("created_at").map(|dt| chrono::DateTime::from_naive_utc_and_offset(dt, chrono::Utc)).unwrap_or_default(),
-                            updated_at: row.get::<Option<chrono::NaiveDateTime>, _>("updated_at").map(|dt| chrono::DateTime::from_naive_utc_and_offset(dt, chrono::Utc)).unwrap_or_default(),
-                            is_disposed: {
-                                // Handle both TEXT and INTEGER types for is_disposed
-                                if let Ok(int_val) = row.try_get::<Option<i32>, _>("is_disposed") {
-                                    int_val.unwrap_or(0) != 0
-                                } else if let Ok(text_val) = row.try_get::<Option<String>, _>("is_disposed") {
-                                    matches!(text_val.as_deref(), Some("1") | Some("true") | Some("TRUE"))
-                                } else {
-                                    false
-                                }
+                let containers = rows
+                    .into_iter()
+                    .map(|row| {
+                        ContainerWithItemCount {
+                            container: Container {
+                                id: row.get::<Option<String>, _>("id").unwrap_or_default(),
+                                name: row.get::<Option<String>, _>("name").unwrap_or_default(),
+                                description: row.get("description"),
+                                location: row
+                                    .get::<Option<String>, _>("location")
+                                    .unwrap_or_default(),
+                                created_at: row
+                                    .get::<Option<chrono::NaiveDateTime>, _>("created_at")
+                                    .map(|dt| {
+                                        chrono::DateTime::from_naive_utc_and_offset(dt, chrono::Utc)
+                                    })
+                                    .unwrap_or_default(),
+                                updated_at: row
+                                    .get::<Option<chrono::NaiveDateTime>, _>("updated_at")
+                                    .map(|dt| {
+                                        chrono::DateTime::from_naive_utc_and_offset(dt, chrono::Utc)
+                                    })
+                                    .unwrap_or_default(),
+                                is_disposed: {
+                                    // Handle both TEXT and INTEGER types for is_disposed
+                                    if let Ok(int_val) =
+                                        row.try_get::<Option<i32>, _>("is_disposed")
+                                    {
+                                        int_val.unwrap_or(0) != 0
+                                    } else if let Ok(text_val) =
+                                        row.try_get::<Option<String>, _>("is_disposed")
+                                    {
+                                        matches!(
+                                            text_val.as_deref(),
+                                            Some("1") | Some("true") | Some("TRUE")
+                                        )
+                                    } else {
+                                        false
+                                    }
+                                },
                             },
-                        },
-                        item_count: row.get("item_count"),
-                    }
-                }).collect();
+                            item_count: row.get("item_count"),
+                        }
+                    })
+                    .collect();
 
                 Ok(containers)
             }
         }
     }
 
-    pub async fn update_container(&self, id: &str, request: UpdateContainerRequest) -> AppResult<Container> {
+    pub async fn update_container(
+        &self,
+        id: &str,
+        request: UpdateContainerRequest,
+    ) -> AppResult<Container> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let mut updates = Vec::new();
@@ -345,7 +387,11 @@ impl ContainerService {
                 if let Some(is_disposed) = request.is_disposed {
                     updates.push("is_disposed = ?");
                     // Store as text to match the current database schema
-                    params.push(if is_disposed { "1".to_string() } else { "0".to_string() });
+                    params.push(if is_disposed {
+                        "1".to_string()
+                    } else {
+                        "0".to_string()
+                    });
                 }
 
                 if updates.is_empty() {
@@ -357,10 +403,7 @@ impl ContainerService {
                 params.push(now.to_rfc3339());
                 params.push(id.to_string());
 
-                let query = format!(
-                    "UPDATE containers SET {} WHERE id = ?",
-                    updates.join(", ")
-                );
+                let query = format!("UPDATE containers SET {} WHERE id = ?", updates.join(", "));
 
                 let mut query_builder = sqlx::query(&query);
                 for param in params {
@@ -391,7 +434,9 @@ impl ContainerService {
 
                 let count: i64 = items_count.get("count");
                 if count > 0 {
-                    return Err(AppError::BadRequest("Cannot delete container that contains items".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Cannot delete container that contains items".to_string(),
+                    ));
                 }
 
                 let result = sqlx::query("DELETE FROM containers WHERE id = $1")
@@ -416,7 +461,10 @@ impl ContainerService {
 
                 let item_count: i64 = item_count_row.get("count");
                 if item_count > 0 {
-                    return Err(AppError::BadRequest("Cannot delete container with items. Move or remove items first.".to_string()));
+                    return Err(AppError::BadRequest(
+                        "Cannot delete container with items. Move or remove items first."
+                            .to_string(),
+                    ));
                 }
 
                 let result = sqlx::query("DELETE FROM containers WHERE id = ?")
@@ -443,8 +491,9 @@ impl ContainerService {
                 .fetch_all(pool)
                 .await?;
 
-                let containers = rows.into_iter().map(|row| {
-                    Container {
+                let containers = rows
+                    .into_iter()
+                    .map(|row| Container {
                         id: row.get("id"),
                         name: row.get("name"),
                         description: row.get("description"),
@@ -452,8 +501,8 @@ impl ContainerService {
                         created_at: row.get("created_at"),
                         updated_at: row.get("updated_at"),
                         is_disposed: row.get("is_disposed"),
-                    }
-                }).collect();
+                    })
+                    .collect();
 
                 Ok(containers)
             }
@@ -465,15 +514,18 @@ impl ContainerService {
                 .fetch_all(pool)
                 .await?;
 
-                let containers = rows.into_iter().map(|row| Container {
-                    id: row.get("id"),
-                    name: row.get("name"),
-                    description: row.get("description"),
-                    location: row.get("location"),
-                    created_at: row.get::<chrono::NaiveDateTime, _>("created_at").and_utc(),
-                    updated_at: row.get::<chrono::NaiveDateTime, _>("updated_at").and_utc(),
-                    is_disposed: row.get("is_disposed"),
-                }).collect();
+                let containers = rows
+                    .into_iter()
+                    .map(|row| Container {
+                        id: row.get("id"),
+                        name: row.get("name"),
+                        description: row.get("description"),
+                        location: row.get("location"),
+                        created_at: row.get::<chrono::NaiveDateTime, _>("created_at").and_utc(),
+                        updated_at: row.get::<chrono::NaiveDateTime, _>("updated_at").and_utc(),
+                        is_disposed: row.get("is_disposed"),
+                    })
+                    .collect();
 
                 Ok(containers)
             }

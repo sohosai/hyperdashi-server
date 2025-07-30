@@ -1,10 +1,7 @@
-use axum::{
-    extract::State,
-    Json,
-};
-use serde::{Deserialize, Serialize};
 use crate::error::AppError;
 use crate::AppState;
+use axum::{extract::State, Json};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct GenerateLabelsRequest {
@@ -23,7 +20,9 @@ pub async fn generate_labels(
 ) -> Result<Json<GenerateLabelsResponse>, AppError> {
     // Validate quantity
     if req.quantity == 0 || req.quantity > 1000 {
-        return Err(AppError::BadRequest("Quantity must be between 1 and 1000".to_string()));
+        return Err(AppError::BadRequest(
+            "Quantity must be between 1 and 1000".to_string(),
+        ));
     }
 
     // Validate record type
@@ -33,7 +32,10 @@ pub async fn generate_labels(
     }
 
     // Generate sequential label IDs
-    let visible_ids = state.2.generate_label_ids(req.quantity).await
+    let visible_ids = state
+        .2
+        .generate_label_ids(req.quantity)
+        .await
         .map_err(|e| AppError::InternalServer(e.to_string()))?;
 
     Ok(Json(GenerateLabelsResponse { visible_ids }))
@@ -49,7 +51,10 @@ pub struct LabelInfo {
 pub async fn get_label_info(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<LabelInfo>>, AppError> {
-    let labels = state.2.get_all_labels().await
+    let labels = state
+        .2
+        .get_all_labels()
+        .await
         .map_err(|e| AppError::InternalServer(e.to_string()))?;
 
     Ok(Json(labels))

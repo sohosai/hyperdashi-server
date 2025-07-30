@@ -23,8 +23,7 @@ impl DatabasePool {
 
             Ok(DatabasePool::Postgres(pool))
         } else if database_url.starts_with("sqlite://") {
-            let options = SqliteConnectOptions::from_str(database_url)?
-                .create_if_missing(true);
+            let options = SqliteConnectOptions::from_str(database_url)?.create_if_missing(true);
 
             let pool = SqlitePoolOptions::new()
                 .max_connections(10)
@@ -35,8 +34,8 @@ impl DatabasePool {
         } else {
             Err(crate::error::AppError::ConfigError(
                 config::ConfigError::Message(
-                    "Invalid database URL. Must start with postgres:// or sqlite://".to_string()
-                )
+                    "Invalid database URL. Must start with postgres:// or sqlite://".to_string(),
+                ),
             ))
         }
     }
@@ -47,13 +46,17 @@ impl DatabasePool {
                 sqlx::migrate!("./migrations")
                     .run(pool)
                     .await
-                    .map_err(|e| crate::error::AppError::DatabaseError(sqlx::Error::Migrate(Box::new(e))))?;
+                    .map_err(|e| {
+                        crate::error::AppError::DatabaseError(sqlx::Error::Migrate(Box::new(e)))
+                    })?;
             }
             DatabasePool::Sqlite(pool) => {
                 sqlx::migrate!("./migrations")
                     .run(pool)
                     .await
-                    .map_err(|e| crate::error::AppError::DatabaseError(sqlx::Error::Migrate(Box::new(e))))?;
+                    .map_err(|e| {
+                        crate::error::AppError::DatabaseError(sqlx::Error::Migrate(Box::new(e)))
+                    })?;
             }
         }
         Ok(())
@@ -78,7 +81,9 @@ impl DatabasePool {
 macro_rules! query_as {
     ($query:expr, $pool:expr) => {
         match $pool {
-            $crate::db::DatabasePool::Postgres(pool) => sqlx::query_as!($query).fetch_all(pool).await,
+            $crate::db::DatabasePool::Postgres(pool) => {
+                sqlx::query_as!($query).fetch_all(pool).await
+            }
             $crate::db::DatabasePool::Sqlite(pool) => sqlx::query_as!($query).fetch_all(pool).await,
         }
     };

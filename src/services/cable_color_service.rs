@@ -1,6 +1,8 @@
 use crate::db::DatabasePool;
 use crate::error::{AppError, AppResult};
-use crate::models::{CableColor, CableColorsListResponse, CreateCableColorRequest, UpdateCableColorRequest};
+use crate::models::{
+    CableColor, CableColorsListResponse, CreateCableColorRequest, UpdateCableColorRequest,
+};
 use sqlx::Row;
 
 pub struct CableColorService {
@@ -63,7 +65,9 @@ impl CableColorService {
                 .bind(id)
                 .fetch_optional(pool)
                 .await?
-                .ok_or_else(|| AppError::NotFound(format!("Cable color with id {} not found", id)))?;
+                .ok_or_else(|| {
+                    AppError::NotFound(format!("Cable color with id {} not found", id))
+                })?;
 
                 Ok(self.row_to_cable_color_postgres(row))
             }
@@ -78,7 +82,9 @@ impl CableColorService {
                 .bind(id)
                 .fetch_optional(pool)
                 .await?
-                .ok_or_else(|| AppError::NotFound(format!("Cable color with id {} not found", id)))?;
+                .ok_or_else(|| {
+                    AppError::NotFound(format!("Cable color with id {} not found", id))
+                })?;
 
                 Ok(self.row_to_cable_color(row))
             }
@@ -108,7 +114,8 @@ impl CableColorService {
                 .fetch_all(pool)
                 .await?;
 
-                let cable_colors: Vec<CableColor> = rows.into_iter()
+                let cable_colors: Vec<CableColor> = rows
+                    .into_iter()
                     .map(|row| self.row_to_cable_color_postgres(row))
                     .collect();
 
@@ -138,7 +145,8 @@ impl CableColorService {
                 .fetch_all(pool)
                 .await?;
 
-                let cable_colors: Vec<CableColor> = rows.into_iter()
+                let cable_colors: Vec<CableColor> = rows
+                    .into_iter()
                     .map(|row| self.row_to_cable_color(row))
                     .collect();
 
@@ -157,7 +165,11 @@ impl CableColorService {
         }
     }
 
-    pub async fn update_cable_color(&self, id: i64, req: UpdateCableColorRequest) -> AppResult<CableColor> {
+    pub async fn update_cable_color(
+        &self,
+        id: i64,
+        req: UpdateCableColorRequest,
+    ) -> AppResult<CableColor> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 // まず色が存在するかチェック
@@ -223,7 +235,10 @@ impl CableColorService {
                     .await?;
 
                 if result.rows_affected() == 0 {
-                    return Err(AppError::NotFound(format!("Cable color with id {} not found", id)));
+                    return Err(AppError::NotFound(format!(
+                        "Cable color with id {} not found",
+                        id
+                    )));
                 }
 
                 Ok(())
@@ -235,7 +250,10 @@ impl CableColorService {
                     .await?;
 
                 if result.rows_affected() == 0 {
-                    return Err(AppError::NotFound(format!("Cable color with id {} not found", id)));
+                    return Err(AppError::NotFound(format!(
+                        "Cable color with id {} not found",
+                        id
+                    )));
                 }
                 Ok(())
             }

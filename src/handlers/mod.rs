@@ -1,16 +1,16 @@
-pub mod items;
-pub mod loans;
-pub mod images;
 pub mod cable_colors;
-pub mod labels;
 pub mod containers;
+pub mod images;
+pub mod items;
+pub mod labels;
+pub mod loans;
 
-pub use items::*;
-pub use loans::*;
-pub use images::*;
 pub use cable_colors::*;
-pub use labels::*;
 pub use containers::*;
+pub use images::*;
+pub use items::*;
+pub use labels::*;
+pub use loans::*;
 
+use crate::services::{CableColorService, ItemService, LoanService, StorageService};
 use std::sync::Arc;
-use crate::services::{ItemService, LoanService, StorageService, CableColorService};
