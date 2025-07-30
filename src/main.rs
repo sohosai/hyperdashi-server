@@ -22,7 +22,7 @@ mod services;
 use crate::config::{Config, StorageType};
 use crate::db::DatabasePool;
 use crate::services::{
-    CableColorService, ContainerService, ItemService, LoanService, StorageService,
+    CableColorService, ItemService, LoanService, StorageService,
 };
 
 pub type AppState = (

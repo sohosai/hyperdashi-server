@@ -4,7 +4,6 @@ use axum::{
     response::Json,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use validator::Validate;
 
 use crate::models::{
@@ -43,7 +42,7 @@ pub async fn container_create(
     State(state): State<ContainerAppState>,
     Json(request): Json<CreateContainerRequest>,
 ) -> Result<(StatusCode, Json<CreateContainerResponse>), StatusCode> {
-    if let Err(_) = request.validate() {
+    if request.validate().is_err() {
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -93,7 +92,7 @@ pub async fn container_update(
     Path(id): Path<String>,
     Json(request): Json<UpdateContainerRequest>,
 ) -> Result<Json<UpdateContainerResponse>, StatusCode> {
-    if let Err(_) = request.validate() {
+    if request.validate().is_err() {
         return Err(StatusCode::BAD_REQUEST);
     }
 

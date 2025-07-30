@@ -63,7 +63,7 @@ impl Config {
             .add_source(File::with_name("config/default").required(false))
             // Add in the current environment file
             // Default to 'development' env
-            .add_source(File::with_name(&format!("config/{}", run_mode)).required(false))
+            .add_source(File::with_name(&format!("config/{run_mode}")).required(false))
             // Add in a local configuration file
             // This file shouldn't be checked in to git
             .add_source(File::with_name("config/local").required(false))

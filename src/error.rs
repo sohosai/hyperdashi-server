@@ -22,15 +22,15 @@ pub enum AppError {
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
-            AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
-            AppError::InternalServerError(msg) => write!(f, "Internal server error: {}", msg),
-            AppError::DatabaseError(err) => write!(f, "Database error: {}", err),
-            AppError::ConfigError(err) => write!(f, "Configuration error: {}", err),
-            AppError::IoError(err) => write!(f, "IO error: {}", err),
-            AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
-            AppError::StorageError(msg) => write!(f, "Storage error: {}", msg),
-            AppError::InternalServer(msg) => write!(f, "Internal server error: {}", msg),
+            AppError::NotFound(msg) => write!(f, "Not found: {msg}"),
+            AppError::BadRequest(msg) => write!(f, "Bad request: {msg}"),
+            AppError::InternalServerError(msg) => write!(f, "Internal server error: {msg}"),
+            AppError::DatabaseError(err) => write!(f, "Database error: {err}"),
+            AppError::ConfigError(err) => write!(f, "Configuration error: {err}"),
+            AppError::IoError(err) => write!(f, "IO error: {err}"),
+            AppError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
+            AppError::StorageError(msg) => write!(f, "Storage error: {msg}"),
+            AppError::InternalServer(msg) => write!(f, "Internal server error: {msg}"),
         }
     }
 }

@@ -12,5 +12,3 @@ pub use items::*;
 pub use labels::*;
 pub use loans::*;
 
-use crate::services::{CableColorService, ItemService, LoanService, StorageService};
-use std::sync::Arc;

@@ -4,7 +4,7 @@ use crate::models::{
     Container, ContainerWithItemCount, CreateContainerRequest, UpdateContainerRequest,
 };
 use crate::services::item_service::ItemService;
-use sqlx::{Row, Sqlite};
+use sqlx::Row;
 
 pub struct ContainerService {
     db: DatabasePool,
@@ -178,7 +178,6 @@ impl ContainerService {
 
                 if location_filter.is_some() {
                     query.push_str(&format!(" AND c.location = ${}", param_index));
-                    param_index += 1;
                 }
 
                 query.push_str(" GROUP BY c.id, c.name, c.description, c.location, c.created_at, c.updated_at, c.is_disposed");

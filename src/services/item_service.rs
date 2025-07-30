@@ -45,9 +45,9 @@ impl ItemService {
                 .bind(&req.label_id)
                 .bind(&req.model_number)
                 .bind(&req.remarks)
-                .bind(&req.purchase_year)
-                .bind(&req.purchase_amount)
-                .bind(&req.durability_years)
+                .bind(req.purchase_year)
+                .bind(req.purchase_amount)
+                .bind(req.durability_years)
                 .bind(is_depreciation_target)
                 .bind(&connection_names)
                 .bind(&cable_color_pattern)
@@ -511,7 +511,7 @@ impl ItemService {
                 let connection_names_json = req
                     .connection_names
                     .as_ref()
-                    .map(|names| serde_json::to_string(names))
+                    .map(serde_json::to_string)
                     .transpose()
                     .map_err(|e| {
                         AppError::InternalServerError(format!(
@@ -523,7 +523,7 @@ impl ItemService {
                 let cable_color_pattern_json = req
                     .cable_color_pattern
                     .as_ref()
-                    .map(|pattern| serde_json::to_string(pattern))
+                    .map(serde_json::to_string)
                     .transpose()
                     .map_err(|e| {
                         AppError::InternalServerError(format!(
@@ -563,10 +563,10 @@ impl ItemService {
                 .bind(&req.label_id)
                 .bind(&req.model_number)
                 .bind(&req.remarks)
-                .bind(&req.purchase_year)
-                .bind(&req.purchase_amount)
-                .bind(&req.durability_years)
-                .bind(&req.is_depreciation_target)
+                .bind(req.purchase_year)
+                .bind(req.purchase_amount)
+                .bind(req.durability_years)
+                .bind(req.is_depreciation_target)
                 .bind(&connection_names_json)
                 .bind(&cable_color_pattern_json)
                 .bind(&storage_location)
@@ -589,7 +589,7 @@ impl ItemService {
                 let connection_names_json = req
                     .connection_names
                     .as_ref()
-                    .map(|names| serde_json::to_string(names))
+                    .map(serde_json::to_string)
                     .transpose()
                     .map_err(|e| {
                         AppError::InternalServerError(format!(
@@ -601,7 +601,7 @@ impl ItemService {
                 let cable_color_pattern_json = req
                     .cable_color_pattern
                     .as_ref()
-                    .map(|pattern| serde_json::to_string(pattern))
+                    .map(serde_json::to_string)
                     .transpose()
                     .map_err(|e| {
                         AppError::InternalServerError(format!(

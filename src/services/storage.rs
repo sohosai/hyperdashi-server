@@ -127,7 +127,7 @@ impl S3Storage {
             .await
             .map_err(|e| {
                 tracing::error!("S3 upload error details: {:?}", e);
-                AppError::StorageError(format!("Failed to upload to S3: {}", e))
+                AppError::StorageError(format!("Failed to upload to S3: {e}"))
             })?;
 
         Ok(self.get_url(&key))
@@ -145,7 +145,7 @@ impl S3Storage {
             .key(key)
             .send()
             .await
-            .map_err(|e| AppError::StorageError(format!("Failed to delete from S3: {}", e)))?;
+            .map_err(|e| AppError::StorageError(format!("Failed to delete from S3: {e}")))?;
 
         Ok(())
     }
@@ -227,7 +227,7 @@ impl LocalStorage {
             ))
         })?;
 
-        let relative_path = format!("{}/{}", dir_name, filename);
+        let relative_path = format!("{dir_name}/{filename}");
         Ok(self.get_url(&relative_path))
     }
 

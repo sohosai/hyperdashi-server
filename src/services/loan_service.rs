@@ -449,7 +449,7 @@ impl LoanService {
                     ));
                 }
 
-                let return_date = req.return_date.unwrap_or_else(|| Utc::now());
+                let return_date = req.return_date.unwrap_or_else(Utc::now);
                 let now = Utc::now();
 
                 // 貸出記録を更新
