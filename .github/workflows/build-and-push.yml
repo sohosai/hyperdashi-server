@@ -55,9 +55,7 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Run clippy
-      run: cargo clippy --all-targets --all-features
-      env:
-        SQLX_OFFLINE: true
+      run: cargo clippy --all-targets --all-features --no-default-features --features "runtime-tokio-rustls postgres sqlite json chrono rust_decimal migrate"
 
     - name: Run tests
       run: cargo test
