@@ -21,7 +21,20 @@ COPY . .
 
 # アプリケーションをビルド（オフラインモード）
 ENV SQLX_OFFLINE=true
-RUN cargo build --release
+# リンカーをmoldに設定してビルド時間とメモリ使用量を削減
+RUN apt-get update && apt-get install -y mold && rm -rf /var/lib/apt/lists/*
+ENV RUSTFLAGS="-C link-arg=-fuse-ld=mold"
+
+# メモリ使用量とビルドの詳細を監視
+RUN echo "Available memory:" && free -h && \
+    echo "Available disk space:" && df -h && \
+    echo "Starting cargo build..." && \
+    (cargo build --release --verbose 2>&1 | tee /tmp/build.log; exit ${PIPESTATUS[0]}) && \
+    echo "Build completed successfully. Checking result:" && \
+    ls -la target/release/ && \
+    echo "Binary details:" && \
+    file target/release/hyperdashi-server || echo "file command not available" || \
+    (echo "Build failed! Last 50 lines of output:" && tail -50 /tmp/build.log && exit 1)
 
 # ビルドされたバイナリのサイズを検証
 RUN ls -lh target/release/hyperdashi-server && \
