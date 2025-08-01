@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     libssl3 \
     libpq5 \
     curl \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # 非rootユーザーを作成
@@ -40,14 +41,21 @@ COPY --from=builder /usr/src/hyperdashi/target/release/hyperdashi-server /usr/lo
 # マイグレーションファイルをコピー
 COPY --from=builder /usr/src/hyperdashi/migrations /app/migrations
 
+# 初期化スクリプトをコピー
+COPY init.sh /usr/local/bin/init.sh
+RUN chmod +x /usr/local/bin/init.sh
+
 # 作業ディレクトリを設定
 WORKDIR /app
+
+# データディレクトリとアップロードディレクトリを作成
+RUN mkdir -p /app/data /app/uploads
 
 # 所有権を変更
 RUN chown -R hyperdashi:hyperdashi /app
 
-# 非rootユーザーに切り替え
-USER hyperdashi
+# Rootユーザーのままでinit.shを実行し、内部でhyperdashiユーザーに切り替える
+# USER hyperdashi
 
 # ポートを公開
 EXPOSE 8080
