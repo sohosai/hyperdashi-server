@@ -7,16 +7,7 @@ WORKDIR /usr/src/hyperdashi
 # Rustツールチェインを更新
 RUN rustup update stable
 
-# 依存関係のキャッシュのためにCargo.tomlとCargo.lockを先にコピー
-COPY Cargo.toml Cargo.lock ./
-
-# ダミーのmain.rsを作成して依存関係をビルド
-RUN mkdir src && \
-    echo "fn main() {}" > src/main.rs && \
-    cargo build --release && \
-    rm -rf src
-
-# 実際のソースコードをコピー
+# ソースコードをコピー
 COPY . .
 
 # アプリケーションをビルド（オフラインモード）
