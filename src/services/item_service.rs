@@ -3,6 +3,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::{CreateItemRequest, Item, ItemsListResponse, UpdateItemRequest};
 use chrono::Utc;
 use sqlx::Row;
+use uuid::Uuid;
 
 pub struct ItemService {
     db: DatabasePool,
@@ -59,7 +60,7 @@ impl ItemService {
                 .fetch_one(pool)
                 .await?;
 
-                let id: i64 = result.get("id");
+                let id: Uuid = result.get("id");
                 self.get_item(id).await
             }
             DatabasePool::Sqlite(pool) => {
@@ -78,14 +79,18 @@ impl ItemService {
                     .unwrap_or(&"location".to_string())
                     .clone();
 
-                let result = sqlx::query!(
+                let new_id = Uuid::new_v4();
+                let new_id_str = new_id.to_string();
+
+                sqlx::query!(
                     r#"
                     INSERT INTO items (
-                        name, label_id, model_number, remarks, purchase_year,
+                        id, name, label_id, model_number, remarks, purchase_year,
                         purchase_amount, durability_years, is_depreciation_target, connection_names,
                         cable_color_pattern, storage_location, container_id, storage_type, qr_code_type, image_url
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                     "#,
+                    new_id_str,
                     req.name,
                     req.label_id,
                     req.model_number,
@@ -105,13 +110,12 @@ impl ItemService {
                 .execute(pool)
                 .await?;
 
-                let id = result.last_insert_rowid();
-                self.get_item(id).await
+                self.get_item(new_id).await
             }
         }
     }
 
-    pub async fn get_item(&self, id: i64) -> AppResult<Item> {
+    pub async fn get_item(&self, id: Uuid) -> AppResult<Item> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let row = sqlx::query(
@@ -146,7 +150,7 @@ impl ItemService {
                     WHERE id = ?1
                     "#,
                 )
-                .bind(id)
+                .bind(id.to_string())
                 .fetch_optional(pool)
                 .await?
                 .ok_or_else(|| AppError::NotFound(format!("Item with id {} not found", id)))?;
@@ -501,7 +505,7 @@ impl ItemService {
         }
     }
 
-    pub async fn update_item(&self, id: i64, req: UpdateItemRequest) -> AppResult<Item> {
+    pub async fn update_item(&self, id: Uuid, req: UpdateItemRequest) -> AppResult<Item> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 // まず物品が存在するかチェック
@@ -613,6 +617,7 @@ impl ItemService {
                 let storage_location = req.storage_location;
 
                 let now = chrono::Utc::now();
+                let id_str = id.to_string();
 
                 sqlx::query!(
                     r#"
@@ -635,7 +640,7 @@ impl ItemService {
                         updated_at = ?17
                     WHERE id = ?1
                     "#,
-                    id,
+                    id_str,
                     req.name,
                     req.label_id,
                     req.model_number,
@@ -662,7 +667,7 @@ impl ItemService {
         }
     }
 
-    pub async fn delete_item(&self, id: i64) -> AppResult<()> {
+    pub async fn delete_item(&self, id: Uuid) -> AppResult<()> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 // まず物品が存在し、貸出中でないかチェック
@@ -710,9 +715,10 @@ impl ItemService {
                 }
 
                 // アクティブな貸出がないかチェック
+                let id_str = id.to_string();
                 let active_loans = sqlx::query!(
                     "SELECT COUNT(*) as count FROM loans WHERE item_id = ?1 AND return_date IS NULL",
-                    id
+                    id_str
                 )
                 .fetch_one(pool)
                 .await?;
@@ -724,7 +730,7 @@ impl ItemService {
                 }
 
                 let result = sqlx::query("DELETE FROM items WHERE id = ?1")
-                    .bind(id)
+                    .bind(id.to_string())
                     .execute(pool)
                     .await?;
 
@@ -736,7 +742,7 @@ impl ItemService {
         }
     }
 
-    pub async fn dispose_item(&self, id: i64) -> AppResult<Item> {
+    pub async fn dispose_item(&self, id: Uuid) -> AppResult<Item> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let now = Utc::now();
@@ -758,7 +764,7 @@ impl ItemService {
                 let now = Utc::now();
                 let result =
                     sqlx::query("UPDATE items SET is_disposed = 1, updated_at = ?2 WHERE id = ?1")
-                        .bind(id)
+                        .bind(id.to_string())
                         .bind(now)
                         .execute(pool)
                         .await?;
@@ -772,7 +778,7 @@ impl ItemService {
         }
     }
 
-    pub async fn undispose_item(&self, id: i64) -> AppResult<Item> {
+    pub async fn undispose_item(&self, id: Uuid) -> AppResult<Item> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let now = Utc::now();
@@ -794,7 +800,7 @@ impl ItemService {
                 let now = Utc::now();
                 let result =
                     sqlx::query("UPDATE items SET is_disposed = 0, updated_at = ?2 WHERE id = ?1")
-                        .bind(id)
+                        .bind(id.to_string())
                         .bind(now)
                         .execute(pool)
                         .await?;
@@ -1064,7 +1070,7 @@ impl ItemService {
         let storage_location: Option<String> = row.get::<Option<String>, _>("storage_location");
 
         Item {
-            id: row.get("id"),
+            id: row.get::<String, _>("id").parse::<Uuid>().unwrap_or_default(),
             name: row.get("name"),
             label_id: row.get("label_id"),
             model_number: row.get("model_number"),

@@ -1,11 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Loan {
     pub id: i64,
-    pub item_id: i64,
+    pub item_id: Uuid,
     pub student_number: String,
     pub student_name: String,
     pub organization: Option<String>,
@@ -18,7 +19,7 @@ pub struct Loan {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreateLoanRequest {
-    pub item_id: i64,
+    pub item_id: Uuid,
 
     #[validate(length(min = 1, max = 20))]
     pub student_number: String,
@@ -41,7 +42,7 @@ pub struct ReturnLoanRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoanWithItem {
     pub id: i64,
-    pub item_id: i64,
+    pub item_id: Uuid,
     pub item_name: String,
     pub item_label_id: String,
     pub student_number: String,
@@ -64,7 +65,7 @@ pub struct LoansListResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoanFilters {
-    pub item_id: Option<i64>,
+    pub item_id: Option<Uuid>,
     pub student_number: Option<String>,
     pub active_only: Option<bool>,
     pub page: Option<u32>,

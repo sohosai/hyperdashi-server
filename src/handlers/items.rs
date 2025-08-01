@@ -5,6 +5,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::error::AppResult;
@@ -63,7 +64,7 @@ pub async fn get_item(
         Arc<ItemService>,
         Arc<LoanService>,
     )>,
-    Path(id): Path<i64>,
+    Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.get_item(id).await?;
     Ok(Json(item))
@@ -105,7 +106,7 @@ pub async fn update_item(
         Arc<ItemService>,
         Arc<LoanService>,
     )>,
-    Path(id): Path<i64>,
+    Path(id): Path<Uuid>,
     Json(req): Json<UpdateItemRequest>,
 ) -> AppResult<Json<Item>> {
     req.validate()
@@ -122,7 +123,7 @@ pub async fn delete_item(
         Arc<ItemService>,
         Arc<LoanService>,
     )>,
-    Path(id): Path<i64>,
+    Path(id): Path<Uuid>,
 ) -> AppResult<StatusCode> {
     item_service.delete_item(id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -135,7 +136,7 @@ pub async fn dispose_item(
         Arc<ItemService>,
         Arc<LoanService>,
     )>,
-    Path(id): Path<i64>,
+    Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.dispose_item(id).await?;
     Ok(Json(item))
@@ -148,7 +149,7 @@ pub async fn undispose_item(
         Arc<ItemService>,
         Arc<LoanService>,
     )>,
-    Path(id): Path<i64>,
+    Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.undispose_item(id).await?;
     Ok(Json(item))

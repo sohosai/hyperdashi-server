@@ -41,6 +41,19 @@ impl StorageService {
         }
     }
 
+    pub async fn upload_for_item(
+        &self,
+        data: Vec<u8>,
+        filename: &str,
+        content_type: &str,
+        item_id: &Uuid,
+    ) -> AppResult<String> {
+        match self {
+            StorageService::S3(storage) => storage.upload_for_item(data, filename, content_type, item_id).await,
+            StorageService::Local(storage) => storage.upload_for_item(data, filename, content_type, item_id).await,
+        }
+    }
+
     pub async fn delete(&self, url: &str) -> AppResult<()> {
         match self {
             StorageService::S3(storage) => storage.delete(url).await,
@@ -116,6 +129,31 @@ impl S3Storage {
         content_type: &str,
     ) -> AppResult<String> {
         let key = format!("images/{}/{}", Uuid::new_v4(), filename);
+
+        self.client
+            .put_object()
+            .bucket(&self.bucket_name)
+            .key(&key)
+            .body(data.into())
+            .content_type(content_type)
+            .send()
+            .await
+            .map_err(|e| {
+                tracing::error!("S3 upload error details: {:?}", e);
+                AppError::StorageError(format!("Failed to upload to S3: {e}"))
+            })?;
+
+        Ok(self.get_url(&key))
+    }
+
+    pub async fn upload_for_item(
+        &self,
+        data: Vec<u8>,
+        filename: &str,
+        content_type: &str,
+        item_id: &Uuid,
+    ) -> AppResult<String> {
+        let key = format!("items/{}/images/{}", item_id, filename);
 
         self.client
             .put_object()
@@ -228,6 +266,30 @@ impl LocalStorage {
         })?;
 
         let relative_path = format!("{dir_name}/{filename}");
+        Ok(self.get_url(&relative_path))
+    }
+
+    pub async fn upload_for_item(
+        &self,
+        data: Vec<u8>,
+        filename: &str,
+        _content_type: &str,
+        item_id: &Uuid,
+    ) -> AppResult<String> {
+        let dir_path = self.base_path.join("items").join(item_id.to_string()).join("images");
+
+        self.ensure_directory(&dir_path).await?;
+
+        let file_path = dir_path.join(filename);
+        fs::write(&file_path, data).await.map_err(|e| {
+            AppError::StorageError(format!(
+                "Failed to write file {}: {}",
+                file_path.display(),
+                e
+            ))
+        })?;
+
+        let relative_path = format!("items/{}/images/{}", item_id, filename);
         Ok(self.get_url(&relative_path))
     }
 

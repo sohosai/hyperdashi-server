@@ -3,6 +3,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::{CreateLoanRequest, Loan, LoanWithItem, LoansListResponse, ReturnLoanRequest};
 use chrono::Utc;
 use sqlx::Row;
+use uuid::Uuid;
 
 pub struct LoanService {
     db: DatabasePool,
@@ -75,7 +76,7 @@ impl LoanService {
                 let item_row = sqlx::query(
                     "SELECT id, name, is_on_loan, is_disposed FROM items WHERE id = ?1",
                 )
-                .bind(req.item_id)
+                .bind(req.item_id.to_string())
                 .fetch_optional(pool)
                 .await?;
 
@@ -97,13 +98,14 @@ impl LoanService {
                 }
 
                 // 貸出記録を作成
+                let item_id_str = req.item_id.to_string();
                 let result = sqlx::query!(
                     r#"
                     INSERT INTO loans (
                         item_id, student_number, student_name, organization, remarks
                     ) VALUES (?1, ?2, ?3, ?4, ?5)
                     "#,
-                    req.item_id,
+                    item_id_str,
                     req.student_number,
                     req.student_name,
                     req.organization,
@@ -116,7 +118,7 @@ impl LoanService {
                 let now = Utc::now();
                 sqlx::query!(
                     "UPDATE items SET is_on_loan = 1, updated_at = ?2 WHERE id = ?1",
-                    req.item_id,
+                    item_id_str,
                     now
                 )
                 .execute(pool)
@@ -405,7 +407,7 @@ impl LoanService {
                     ));
                 }
 
-                let item_id: i64 = loan_row.get("item_id");
+                let item_id: Uuid = loan_row.get("item_id");
                 let return_date = req.return_date.unwrap_or_else(chrono::Utc::now);
                 let now = chrono::Utc::now();
 
@@ -463,14 +465,18 @@ impl LoanService {
                 .execute(pool)
                 .await?;
 
-                let item_id: i64 = loan_row.try_get("item_id").map_err(|_| {
+                let item_id_str: String = loan_row.try_get("item_id").map_err(|_| {
                     AppError::InternalServerError("Loan record missing item_id".to_string())
+                })?;
+                let item_id = item_id_str.parse::<Uuid>().map_err(|_| {
+                    AppError::InternalServerError("Invalid item_id format".to_string())
                 })?;
 
                 // 物品の貸出状態を更新
+                let item_id_str = item_id.to_string();
                 sqlx::query!(
                     "UPDATE items SET is_on_loan = 0, updated_at = ?2 WHERE id = ?1",
-                    item_id,
+                    item_id_str,
                     now
                 )
                 .execute(pool)
@@ -484,7 +490,7 @@ impl LoanService {
     fn row_to_loan(&self, row: sqlx::sqlite::SqliteRow) -> Loan {
         Loan {
             id: row.get("id"),
-            item_id: row.get("item_id"),
+            item_id: row.get::<String, _>("item_id").parse::<Uuid>().unwrap_or_default(),
             student_number: row.get("student_number"),
             student_name: row.get("student_name"),
             organization: row.get("organization"),
@@ -499,7 +505,7 @@ impl LoanService {
     fn row_to_loan_with_item(&self, row: sqlx::sqlite::SqliteRow) -> LoanWithItem {
         LoanWithItem {
             id: row.get("id"),
-            item_id: row.get("item_id"),
+            item_id: row.get::<String, _>("item_id").parse::<Uuid>().unwrap_or_default(),
             item_name: row.get("item_name"),
             item_label_id: row.get("item_label_id"),
             student_number: row.get("student_number"),
