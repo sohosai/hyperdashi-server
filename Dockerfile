@@ -4,8 +4,11 @@ FROM rust:latest AS builder
 # 作業ディレクトリを設定
 WORKDIR /usr/src/hyperdashi
 
-# 依存関係のキャッシュのためにCargo.tomlを先にコピー
-COPY Cargo.toml ./
+# Rustツールチェインを更新
+RUN rustup update stable
+
+# 依存関係のキャッシュのためにCargo.tomlとCargo.lockを先にコピー
+COPY Cargo.toml Cargo.lock ./
 
 # ダミーのmain.rsを作成して依存関係をビルド
 RUN mkdir src && \
@@ -19,6 +22,11 @@ COPY . .
 # アプリケーションをビルド（オフラインモード）
 ENV SQLX_OFFLINE=true
 RUN cargo build --release
+
+# ビルドされたバイナリのサイズを検証
+RUN ls -lh target/release/hyperdashi-server && \
+    test -s target/release/hyperdashi-server || (echo "Binary is empty!" && exit 1) && \
+    [ $(stat -f%z target/release/hyperdashi-server 2>/dev/null || stat -c%s target/release/hyperdashi-server) -gt 1000000 ] || (echo "Binary too small: $(stat -f%z target/release/hyperdashi-server 2>/dev/null || stat -c%s target/release/hyperdashi-server) bytes" && exit 1)
 
 # 実行ステージ
 FROM debian:bookworm-slim
@@ -43,7 +51,8 @@ COPY --from=builder /usr/src/hyperdashi/migrations /app/migrations
 
 # 初期化スクリプトをコピー
 COPY init.sh /usr/local/bin/init.sh
-RUN chmod +x /usr/local/bin/init.sh
+RUN sed -i 's/\r$//' /usr/local/bin/init.sh && \
+    chmod +x /usr/local/bin/init.sh
 
 # 作業ディレクトリを設定
 WORKDIR /app
@@ -65,4 +74,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
 # アプリケーションを実行
-CMD ["hyperdashi-server"]
+CMD ["/usr/local/bin/init.sh"]
