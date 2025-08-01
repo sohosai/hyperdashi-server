@@ -16,7 +16,8 @@ RUN mkdir src && \
 # 実際のソースコードをコピー
 COPY . .
 
-# アプリケーションをビルド
+# アプリケーションをビルド（オフラインモード）
+ENV SQLX_OFFLINE=true
 RUN cargo build --release
 
 # 実行ステージ
