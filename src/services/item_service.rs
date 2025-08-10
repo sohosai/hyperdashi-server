@@ -32,16 +32,18 @@ impl ItemService {
                     .unwrap_or(&"location".to_string())
                     .clone();
 
-                let result = sqlx::query(
+                let new_id = Uuid::new_v4();
+                
+                sqlx::query(
                     r#"
                     INSERT INTO items (
-                        name, label_id, model_number, remarks, purchase_year,
+                        id, name, label_id, model_number, remarks, purchase_year,
                         purchase_amount, durability_years, is_depreciation_target, connection_names,
                         cable_color_pattern, storage_location, container_id, storage_type, qr_code_type, image_url
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                    RETURNING id
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                     "#,
                 )
+                .bind(new_id)
                 .bind(&req.name)
                 .bind(&req.label_id)
                 .bind(&req.model_number)
@@ -57,11 +59,10 @@ impl ItemService {
                 .bind(&storage_type)
                 .bind(&req.qr_code_type)
                 .bind(&req.image_url)
-                .fetch_one(pool)
+                .execute(pool)
                 .await?;
 
-                let id: Uuid = result.get("id");
-                self.get_item(id).await
+                self.get_item(new_id).await
             }
             DatabasePool::Sqlite(pool) => {
                 let connection_names = req
