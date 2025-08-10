@@ -4,13 +4,11 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
 
 use crate::error::AppResult;
 use crate::models::{CreateItemRequest, Item, ItemsListResponse, UpdateItemRequest};
-use crate::services::{CableColorService, ItemService, LoanService, StorageService};
 
 #[derive(Deserialize)]
 pub struct ItemsQuery {
@@ -34,12 +32,7 @@ fn default_per_page() -> u32 {
 }
 
 pub async fn list_items(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Query(params): Query<ItemsQuery>,
 ) -> AppResult<Json<ItemsListResponse>> {
     let response = item_service
@@ -58,12 +51,7 @@ pub async fn list_items(
 }
 
 pub async fn get_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.get_item(id).await?;
@@ -71,12 +59,7 @@ pub async fn get_item(
 }
 
 pub async fn get_item_by_label(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Path(label_id): Path<String>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.get_item_by_label(&label_id).await?;
@@ -84,12 +67,7 @@ pub async fn get_item_by_label(
 }
 
 pub async fn create_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Json(req): Json<CreateItemRequest>,
 ) -> AppResult<(StatusCode, Json<Item>)> {
     req.validate()
@@ -100,12 +78,7 @@ pub async fn create_item(
 }
 
 pub async fn update_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateItemRequest>,
 ) -> AppResult<Json<Item>> {
@@ -117,12 +90,7 @@ pub async fn update_item(
 }
 
 pub async fn delete_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<StatusCode> {
     item_service.delete_item(id).await?;
@@ -130,12 +98,7 @@ pub async fn delete_item(
 }
 
 pub async fn dispose_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.dispose_item(id).await?;
@@ -143,12 +106,7 @@ pub async fn dispose_item(
 }
 
 pub async fn undispose_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.undispose_item(id).await?;
@@ -161,25 +119,73 @@ pub struct SuggestionsResponse {
 }
 
 pub async fn get_connection_names_suggestions(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
 ) -> AppResult<Json<SuggestionsResponse>> {
     let suggestions = item_service.get_connection_names_suggestions().await?;
     Ok(Json(SuggestionsResponse { suggestions }))
 }
 
 pub async fn get_storage_locations_suggestions(
-    State((_storage_service, _cable_color_service, item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
 ) -> AppResult<Json<SuggestionsResponse>> {
     let suggestions = item_service.get_storage_locations_suggestions().await?;
     Ok(Json(SuggestionsResponse { suggestions }))
+}
+
+use axum::extract::Multipart;
+
+pub async fn add_item_image(
+    State((storage, _cable, item_service, _loan, _container)): State<crate::AppState>,
+    Path(id): Path<String>,
+    mut multipart: Multipart,
+) -> Result<Json<Item>, StatusCode> {
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let field_name = field.name().unwrap_or("").to_string();
+        if field_name == "image" {
+            let file_name = field.file_name().unwrap_or("image.jpg").to_string();
+            let content_type = field.content_type().unwrap_or("image/jpeg").to_string();
+            let data = field.bytes().await.unwrap();
+            
+            match storage.upload(data.to_vec(), &file_name, &content_type).await {
+                Ok(image_url) => {
+                    match item_service.update_item_image(&id, &image_url).await {
+                        Ok(item) => return Ok(Json(item)),
+                        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+                    }
+                }
+                Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        }
+    }
+
+    Err(StatusCode::BAD_REQUEST)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkDeleteItemsRequest {
+    pub ids: Vec<String>,
+}
+
+pub async fn bulk_delete_items(
+    State((_storage, _cable, item_service, _loan, _container)): State<crate::AppState>,
+    Json(request): Json<BulkDeleteItemsRequest>,
+) -> AppResult<StatusCode> {
+    item_service.bulk_delete_items(&request.ids).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkUpdateItemsDisposedStatusRequest {
+    pub ids: Vec<String>,
+    pub is_disposed: bool,
+}
+
+pub async fn bulk_update_items_disposed_status(
+    State((_storage, _cable, item_service, _loan, _container)): State<crate::AppState>,
+    Json(request): Json<BulkUpdateItemsDisposedStatusRequest>,
+) -> AppResult<StatusCode> {
+    item_service
+        .bulk_update_disposed_status(&request.ids, request.is_disposed)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }

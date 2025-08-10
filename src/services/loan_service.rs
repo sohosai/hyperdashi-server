@@ -99,28 +99,28 @@ impl LoanService {
 
                 // 貸出記録を作成
                 let item_id_str = req.item_id.to_string();
-                let result = sqlx::query!(
+                let result = sqlx::query(
                     r#"
                     INSERT INTO loans (
                         item_id, student_number, student_name, organization, remarks
                     ) VALUES (?1, ?2, ?3, ?4, ?5)
-                    "#,
-                    item_id_str,
-                    req.student_number,
-                    req.student_name,
-                    req.organization,
-                    req.remarks
+                    "#
                 )
+                .bind(&item_id_str)
+                .bind(req.student_number)
+                .bind(req.student_name)
+                .bind(req.organization)
+                .bind(req.remarks)
                 .execute(pool)
                 .await?;
 
                 // 物品の貸出状態を更新
                 let now = Utc::now();
-                sqlx::query!(
-                    "UPDATE items SET is_on_loan = 1, updated_at = ?2 WHERE id = ?1",
-                    item_id_str,
-                    now
+                sqlx::query(
+                    "UPDATE items SET is_on_loan = 1, updated_at = ?2 WHERE id = ?1"
                 )
+                .bind(&item_id_str)
+                .bind(now)
                 .execute(pool)
                 .await?;
 
@@ -168,6 +168,52 @@ impl LoanService {
             }
         }
     }
+
+   pub async fn get_active_loan_for_item(&self, item_id: &str) -> AppResult<Option<Loan>> {
+       let item_uuid = match Uuid::parse_str(item_id) {
+           Ok(uuid) => uuid,
+           Err(_) => return Err(AppError::BadRequest("Invalid item ID format".to_string())),
+       };
+
+       match &self.db {
+           DatabasePool::Postgres(pool) => {
+               let row = sqlx::query(
+                   r#"
+                   SELECT
+                       id, item_id, student_number, student_name, organization,
+                       loan_date, return_date, remarks, created_at, updated_at
+                   FROM loans
+                   WHERE item_id = $1 AND return_date IS NULL
+                   ORDER BY loan_date DESC
+                   LIMIT 1
+                   "#,
+               )
+               .bind(item_uuid)
+               .fetch_optional(pool)
+               .await?;
+
+               Ok(row.map(|r| self.row_to_loan_postgres(r)))
+           }
+           DatabasePool::Sqlite(pool) => {
+               let row = sqlx::query(
+                   r#"
+                   SELECT
+                       id, item_id, student_number, student_name, organization,
+                       loan_date, return_date, remarks, created_at, updated_at
+                   FROM loans
+                   WHERE item_id = ?1 AND return_date IS NULL
+                   ORDER BY loan_date DESC
+                   LIMIT 1
+                   "#,
+               )
+               .bind(item_id)
+               .fetch_optional(pool)
+               .await?;
+
+               Ok(row.map(|r| self.row_to_loan(r)))
+           }
+       }
+   }
 
     pub async fn list_loans(
         &self,
@@ -455,13 +501,13 @@ impl LoanService {
                 let now = Utc::now();
 
                 // 貸出記録を更新
-                sqlx::query!(
-                    "UPDATE loans SET return_date = ?2, remarks = ?3, updated_at = ?4 WHERE id = ?1",
-                    id,
-                    return_date,
-                    req.remarks,
-                    now
+                sqlx::query(
+                    "UPDATE loans SET return_date = ?2, remarks = ?3, updated_at = ?4 WHERE id = ?1"
                 )
+                .bind(id)
+                .bind(return_date)
+                .bind(req.remarks)
+                .bind(now)
                 .execute(pool)
                 .await?;
 
@@ -474,11 +520,11 @@ impl LoanService {
 
                 // 物品の貸出状態を更新
                 let item_id_str = item_id.to_string();
-                sqlx::query!(
-                    "UPDATE items SET is_on_loan = 0, updated_at = ?2 WHERE id = ?1",
-                    item_id_str,
-                    now
+                sqlx::query(
+                    "UPDATE items SET is_on_loan = 0, updated_at = ?2 WHERE id = ?1"
                 )
+                .bind(&item_id_str)
+                .bind(now)
                 .execute(pool)
                 .await?;
 

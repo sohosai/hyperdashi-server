@@ -3,7 +3,6 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
@@ -21,19 +20,18 @@ mod services;
 
 use crate::config::{Config, StorageType};
 use crate::db::DatabasePool;
-use crate::services::{CableColorService, ItemService, LoanService, StorageService};
+use crate::services::{CableColorService, ItemService, LoanService, StorageService, ContainerService};
 
 pub type AppState = (
     Arc<StorageService>,
     Arc<CableColorService>,
     Arc<ItemService>,
     Arc<LoanService>,
+    Arc<ContainerService>,
 );
 
-#[derive(Clone)]
-pub struct ContainerAppState {
-    pub db: DatabasePool,
-}
+
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -68,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let cable_color_service = Arc::new(CableColorService::new(db_pool.clone()));
     let item_service = Arc::new(ItemService::new(db_pool.clone()));
     let loan_service = Arc::new(LoanService::new(db_pool.clone()));
+    let container_service = Arc::new(ContainerService::new(db_pool.clone()));
 
     // Create app states
     let app_state = (
@@ -75,105 +74,120 @@ async fn main() -> anyhow::Result<()> {
         cable_color_service,
         item_service.clone(),
         loan_service,
+        container_service,
     );
-    let container_app_state = ContainerAppState {
-        db: db_pool.clone(),
-    };
-
-    // Build application routes
-    let mut app = Router::new()
-        .route("/", get(root))
-        .route("/api/v1/health", get(health_check))
+    let api_routes = Router::new()
         // Item routes
         .route(
-            "/api/v1/items",
+            "/items",
             get(handlers::list_items).post(handlers::create_item),
         )
         .route(
-            "/api/v1/items/:id",
+            "/items/:id",
             get(handlers::get_item)
                 .put(handlers::update_item)
                 .delete(handlers::delete_item),
         )
-        .route("/api/v1/items/:id/dispose", post(handlers::dispose_item))
+        .route("/items/:id/dispose", post(handlers::dispose_item))
+        .route("/items/:id/undispose", post(handlers::undispose_item))
+        .route("/items/:id/image", post(handlers::add_item_image))
         .route(
-            "/api/v1/items/:id/undispose",
-            post(handlers::undispose_item),
-        )
-        .route(
-            "/api/v1/items/by-label/:label_id",
+            "/items/by-label/:label_id",
             get(handlers::get_item_by_label),
         )
         .route(
-            "/api/v1/items/suggestions/connection_names",
+            "/items/suggestions/connection_names",
             get(handlers::get_connection_names_suggestions),
         )
         .route(
-            "/api/v1/items/suggestions/storage_locations",
+            "/items/suggestions/storage_locations",
             get(handlers::get_storage_locations_suggestions),
         )
-        // Cable color routes
+       .route(
+           "/items/:itemId/active-loan",
+           get(handlers::get_active_loan_for_item),
+       )
+       .route(
+           "/items/bulk",
+           axum::routing::delete(handlers::bulk_delete_items),
+       )
+       .route(
+           "/items/bulk/disposed",
+           axum::routing::put(handlers::bulk_update_items_disposed_status),
+       )
+       // Cable color routes
+       .route(
+           "/cable_colors",
+           get(handlers::list_cable_colors).post(handlers::create_cable_color),
+       )
         .route(
-            "/api/v1/cable_colors",
-            get(handlers::list_cable_colors).post(handlers::create_cable_color),
-        )
-        .route(
-            "/api/v1/cable_colors/:id",
+            "/cable_colors/:id",
             get(handlers::get_cable_color)
                 .put(handlers::update_cable_color)
                 .delete(handlers::delete_cable_color),
         )
         // Loan routes
-        .route(
-            "/api/v1/loans",
-            get(handlers::list_loans).post(handlers::create_loan),
-        )
-        .route("/api/v1/loans/:id", get(handlers::get_loan))
-        .route("/api/v1/loans/:id/return", post(handlers::return_loan))
+        .route("/loans", get(handlers::list_loans).post(handlers::create_loan))
+        .route("/loans/:id", get(handlers::get_loan))
+        .route("/loans/:id/return", post(handlers::return_loan))
+        .route("/loans/history", get(handlers::list_loans))
         // Label routes
-        .route("/api/v1/labels/generate", post(handlers::generate_labels))
-        .route("/api/v1/labels", get(handlers::get_label_info))
+        .route("/labels/generate", post(handlers::generate_labels))
+        .route("/labels", get(handlers::get_label_info))
+        // ID Check routes
+        .route("/ids/check/:id", get(handlers::check_global_id))
+        // Container routes
+        .route(
+            "/containers",
+            get(handlers::list_containers).post(handlers::create_container),
+        )
+        .route(
+            "/containers/:id",
+            get(handlers::get_container)
+                .put(handlers::update_container)
+                .delete(handlers::delete_container),
+        )
+       .route(
+           "/containers/bulk",
+           axum::routing::delete(handlers::bulk_delete_containers),
+       )
+       .route(
+           "/containers/bulk/disposed",
+           axum::routing::put(handlers::bulk_update_containers_disposed_status),
+       )
+        .route(
+            "/containers/check/:id",
+            get(handlers::check_container_id),
+        )
+        .route(
+            "/containers/by-location/:location",
+            get(handlers::get_containers_by_location),
+        )
         // Image routes - larger body limit for file uploads
         .route(
-            "/api/v1/images/upload",
+            "/images/upload",
             post(handlers::upload_image).layer(DefaultBodyLimit::max(
                 config.storage.max_file_size_mb as usize * 1024 * 1024 * 2,
             )), // 2倍のマージンを設定
         )
-        // Add state
-        .with_state(app_state)
-        // Container routes with separate state
-        .route(
-            "/api/v1/containers",
-            get(handlers::container_list).post(handlers::container_create),
-        )
-        .route(
-            "/api/v1/containers/:id",
-            get(handlers::container_get)
-                .put(handlers::container_update)
-                .delete(handlers::container_delete),
-        )
-        .route(
-            "/api/v1/containers/by-location/:location",
-            get(handlers::containers_by_location),
-        )
-        .with_state(container_app_state)
+       .route("/images/:filename", axum::routing::delete(handlers::delete_image))
+        .with_state(app_state);
+
+    let mut app = Router::new()
+        .route("/", get(root))
+        .route("/api/v1/health", get(health_check))
+        .nest("/api/v1", api_routes)
         // ファイルアップロード用のボディサイズ制限を設定
         .layer(DefaultBodyLimit::max(
             config.storage.max_file_size_mb as usize * 1024 * 1024,
         ))
-        .layer({
-            let cors_origins = env::var("CORS_ALLOWED_ORIGINS")
-                .unwrap_or_else(|_| "http://localhost:3000,http://127.0.0.1:3000".to_string());
-
-            info!("CORS allowed origins: {}", cors_origins);
-
+        .layer(
             CorsLayer::new()
                 .allow_origin(Any)
                 .allow_methods(Any)
                 .allow_headers(Any)
-                .allow_credentials(false)
-        })
+                .allow_credentials(false),
+        )
         .layer(TraceLayer::new_for_http());
 
     // Add static file serving for local storage

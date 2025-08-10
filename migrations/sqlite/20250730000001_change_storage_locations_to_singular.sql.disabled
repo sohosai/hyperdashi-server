@@ -1,0 +1,15 @@
+-- Update storage_locations to be a single TEXT field, not a JSON array (PostgreSQL compatible)
+-- Also, rename the column to storage_location to reflect the change
+
+-- Step 1: Add a new temporary column for the single location
+ALTER TABLE items ADD COLUMN IF NOT EXISTS storage_location_temp TEXT;
+
+-- Step 2: Migrate data from the old JSON array to the new single field
+-- PostgreSQL version using JSONB operations
+UPDATE items SET storage_location_temp = storage_locations::jsonb ->> 0 WHERE storage_locations IS NOT NULL AND storage_locations != '[]';
+
+-- Step 3: Drop the old column
+ALTER TABLE items DROP COLUMN storage_locations;
+
+-- Step 4: Rename the new column to the final name
+ALTER TABLE items RENAME COLUMN storage_location_temp TO storage_location;

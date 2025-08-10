@@ -31,7 +31,7 @@ pub struct StorageConfig {
 }
 
 fn default_max_file_size() -> u64 {
-    5 // Default 5MB
+    20 // Default 20MB
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -108,8 +108,9 @@ impl Config {
             "s3" => {
                 let bucket_name = env::var("S3_BUCKET_NAME")
                     .map_err(|_| ConfigError::Message("S3_BUCKET_NAME not set".to_string()))?;
-                let region = env::var("AWS_REGION")
-                    .map_err(|_| ConfigError::Message("AWS_REGION not set".to_string()))?;
+                let region = env::var("S3_REGION")
+                    .or_else(|_| env::var("AWS_REGION"))
+                    .unwrap_or_else(|_| String::new());
                 let access_key_id = env::var("AWS_ACCESS_KEY_ID").ok();
                 let secret_access_key = env::var("AWS_SECRET_ACCESS_KEY").ok();
 

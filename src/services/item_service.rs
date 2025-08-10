@@ -40,7 +40,7 @@ impl ItemService {
                         cable_color_pattern, storage_location, container_id, storage_type, qr_code_type, image_url
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                     RETURNING id
-                    "#
+                    "#,
                 )
                 .bind(&req.name)
                 .bind(&req.label_id)
@@ -82,7 +82,7 @@ impl ItemService {
                 let new_id = Uuid::new_v4();
                 let new_id_str = new_id.to_string();
 
-                sqlx::query!(
+                sqlx::query(
                     r#"
                     INSERT INTO items (
                         id, name, label_id, model_number, remarks, purchase_year,
@@ -90,23 +90,23 @@ impl ItemService {
                         cable_color_pattern, storage_location, container_id, storage_type, qr_code_type, image_url
                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
                     "#,
-                    new_id_str,
-                    req.name,
-                    req.label_id,
-                    req.model_number,
-                    req.remarks,
-                    req.purchase_year,
-                    req.purchase_amount,
-                    req.durability_years,
-                    is_depreciation_target,
-                    connection_names,
-                    cable_color_pattern,
-                    storage_location,
-                    req.container_id,
-                    storage_type,
-                    req.qr_code_type,
-                    req.image_url
                 )
+                .bind(new_id_str)
+                .bind(req.name)
+                .bind(req.label_id)
+                .bind(req.model_number)
+                .bind(req.remarks)
+                .bind(req.purchase_year)
+                .bind(req.purchase_amount)
+                .bind(req.durability_years)
+                .bind(is_depreciation_target)
+                .bind(connection_names)
+                .bind(cable_color_pattern)
+                .bind(storage_location)
+                .bind(req.container_id)
+                .bind(storage_type)
+                .bind(req.qr_code_type)
+                .bind(req.image_url)
                 .execute(pool)
                 .await?;
 
@@ -619,7 +619,7 @@ impl ItemService {
                 let now = chrono::Utc::now();
                 let id_str = id.to_string();
 
-                sqlx::query!(
+                sqlx::query(
                     r#"
                     UPDATE items SET
                         name = COALESCE(?2, name),
@@ -640,29 +640,78 @@ impl ItemService {
                         updated_at = ?17
                     WHERE id = ?1
                     "#,
-                    id_str,
-                    req.name,
-                    req.label_id,
-                    req.model_number,
-                    req.remarks,
-                    req.purchase_year,
-                    req.purchase_amount,
-                    req.durability_years,
-                    req.is_depreciation_target,
-                    connection_names_json,
-                    cable_color_pattern_json,
-                    storage_location,
-                    req.container_id,
-                    req.storage_type,
-                    req.qr_code_type,
-                    req.image_url,
-                    now
                 )
+                .bind(id_str)
+                .bind(req.name)
+                .bind(req.label_id)
+                .bind(req.model_number)
+                .bind(req.remarks)
+                .bind(req.purchase_year)
+                .bind(req.purchase_amount)
+                .bind(req.durability_years)
+                .bind(req.is_depreciation_target)
+                .bind(connection_names_json)
+                .bind(cable_color_pattern_json)
+                .bind(storage_location)
+                .bind(req.container_id)
+                .bind(req.storage_type)
+                .bind(req.qr_code_type)
+                .bind(req.image_url)
+                .bind(now)
                 .execute(pool)
                 .await?;
 
                 // 更新後の物品を取得して返す
                 self.get_item(id).await
+            }
+        }
+    }
+
+    pub async fn update_item_image(&self, id: &str, image_url: &str) -> AppResult<Item> {
+        let item_id = match Uuid::parse_str(id) {
+            Ok(uuid) => uuid,
+            Err(_) => {
+                return Err(AppError::BadRequest(format!(
+                    "Invalid item ID format: {}",
+                    id
+                )))
+            }
+        };
+
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                let now = Utc::now();
+                let result = sqlx::query(
+                    "UPDATE items SET image_url = $1, updated_at = $2 WHERE id = $3",
+                )
+                .bind(image_url)
+                .bind(now)
+                .bind(item_id)
+                .execute(pool)
+                .await?;
+
+                if result.rows_affected() == 0 {
+                    return Err(AppError::NotFound(format!("Item with id {} not found", id)));
+                }
+
+                self.get_item(item_id).await
+            }
+            DatabasePool::Sqlite(pool) => {
+                let now = Utc::now();
+                let result = sqlx::query(
+                    "UPDATE items SET image_url = ?1, updated_at = ?2 WHERE id = ?3",
+                )
+                .bind(image_url)
+                .bind(now)
+                .bind(item_id.to_string())
+                .execute(pool)
+                .await?;
+
+                if result.rows_affected() == 0 {
+                    return Err(AppError::NotFound(format!("Item with id {} not found", id)));
+                }
+
+                self.get_item(item_id).await
             }
         }
     }
@@ -716,14 +765,14 @@ impl ItemService {
 
                 // アクティブな貸出がないかチェック
                 let id_str = id.to_string();
-                let active_loans = sqlx::query!(
-                    "SELECT COUNT(*) as count FROM loans WHERE item_id = ?1 AND return_date IS NULL",
-                    id_str
+                let active_loans = sqlx::query(
+                    "SELECT COUNT(*) as count FROM loans WHERE item_id = ?1 AND return_date IS NULL"
                 )
+                .bind(id_str)
                 .fetch_one(pool)
                 .await?;
 
-                if active_loans.count > 0 {
+                if active_loans.get::<i64, _>("count") > 0 {
                     return Err(AppError::BadRequest(
                         "Cannot delete item with active loans".to_string(),
                     ));
@@ -1056,6 +1105,122 @@ impl ItemService {
                 }
 
                 Ok(all_labels)
+            }
+        }
+    }
+
+    pub async fn bulk_delete_items(&self, ids: &[String]) -> AppResult<()> {
+        let item_ids: Vec<Uuid> = ids
+            .iter()
+            .map(|id| Uuid::parse_str(id).map_err(|_| AppError::BadRequest("Invalid UUID format".to_string())))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Check if any items are on loan
+        let on_loan_check = self.check_items_on_loan(&item_ids).await?;
+        if on_loan_check {
+            return Err(AppError::BadRequest(
+                "One or more items are currently on loan and cannot be deleted.".to_string(),
+            ));
+        }
+
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                let query = "DELETE FROM items WHERE id = ANY($1)";
+                sqlx::query(query)
+                    .bind(&item_ids)
+                    .execute(pool)
+                    .await
+                    .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+            }
+            DatabasePool::Sqlite(pool) => {
+                let mut tx = pool.begin().await.map_err(|e| {
+                    AppError::InternalServerError(e.to_string())
+                })?;
+                for id in &item_ids {
+                    sqlx::query("DELETE FROM items WHERE id = ?")
+                        .bind(id.to_string())
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+                }
+                tx.commit()
+                    .await
+                    .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn bulk_update_disposed_status(
+        &self,
+        ids: &[String],
+        is_disposed: bool,
+    ) -> AppResult<()> {
+        let item_ids: Vec<Uuid> = ids
+            .iter()
+            .map(|id| Uuid::parse_str(id).map_err(|_| AppError::BadRequest("Invalid UUID format".to_string())))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                let query = "UPDATE items SET is_disposed = $1, updated_at = NOW() WHERE id = ANY($2)";
+                sqlx::query(query)
+                    .bind(is_disposed)
+                    .bind(&item_ids)
+                    .execute(pool)
+                    .await
+                    .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+            }
+            DatabasePool::Sqlite(pool) => {
+                let mut tx = pool.begin().await.map_err(|e| {
+                    AppError::InternalServerError(e.to_string())
+                })?;
+                for id in &item_ids {
+                    sqlx::query("UPDATE items SET is_disposed = ?, updated_at = ? WHERE id = ?")
+                        .bind(is_disposed)
+                        .bind(Utc::now())
+                        .bind(id.to_string())
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+                }
+                tx.commit()
+                    .await
+                    .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn check_items_on_loan(&self, ids: &[Uuid]) -> AppResult<bool> {
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                let query = "SELECT EXISTS(SELECT 1 FROM items WHERE id = ANY($1) AND is_on_loan = TRUE) as has_loan";
+                let result = sqlx::query(query)
+                    .bind(ids)
+                    .fetch_one(pool)
+                    .await
+                    .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+                Ok(result.get("has_loan"))
+            }
+            DatabasePool::Sqlite(pool) => {
+                // SQLite doesn't support array binding, so we check one by one.
+                for id in ids {
+                    let result = sqlx::query("SELECT is_on_loan FROM items WHERE id = ?")
+                        .bind(id.to_string())
+                        .fetch_optional(pool)
+                        .await
+                        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+
+                    if let Some(row) = result {
+                        if row.get::<bool, _>("is_on_loan") {
+                            return Ok(true);
+                        }
+                    }
+                }
+                Ok(false)
             }
         }
     }

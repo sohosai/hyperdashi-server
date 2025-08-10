@@ -8,6 +8,7 @@ pub struct Container {
     pub name: String,
     pub description: Option<String>,
     pub location: String,
+    pub image_url: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub is_disposed: bool,
@@ -20,6 +21,7 @@ pub struct CreateContainerRequest {
     pub description: Option<String>,
     #[validate(length(min = 1, max = 100))]
     pub location: String,
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
@@ -30,6 +32,7 @@ pub struct UpdateContainerRequest {
     #[validate(length(min = 1, max = 100))]
     pub location: Option<String>,
     pub is_disposed: Option<bool>,
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

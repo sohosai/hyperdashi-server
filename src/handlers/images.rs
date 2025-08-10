@@ -3,11 +3,10 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use axum::extract::Path;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use crate::error::AppResult;
-use crate::services::{CableColorService, ItemService, LoanService, StorageService};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImageUploadResponse {
@@ -17,12 +16,7 @@ pub struct ImageUploadResponse {
 }
 
 pub async fn upload_image(
-    State((storage_service, _cable_color_service, _item_service, _loan_service)): State<(
-        Arc<StorageService>,
-        Arc<CableColorService>,
-        Arc<ItemService>,
-        Arc<LoanService>,
-    )>,
+    State((storage_service, _cable_color_service, _item_service, _loan_service, _container_service)): State<crate::AppState>,
     mut multipart: Multipart,
 ) -> AppResult<(StatusCode, Json<ImageUploadResponse>)> {
     tracing::info!("Starting image upload process");
@@ -130,6 +124,18 @@ pub async fn upload_image(
     Err(crate::error::AppError::BadRequest(
         "No image field found in multipart data".to_string(),
     ))
+}
+
+pub async fn delete_image(
+   State((storage_service, _, _, _, _)): State<crate::AppState>,
+   Path(filename): Path<String>,
+) -> AppResult<StatusCode> {
+   tracing::info!("Attempting to delete image: {}", filename);
+
+   storage_service.delete(&filename).await?;
+
+   tracing::info!("Successfully deleted image: {}", filename);
+   Ok(StatusCode::NO_CONTENT)
 }
 
 fn is_image_content_type(content_type: &str) -> bool {

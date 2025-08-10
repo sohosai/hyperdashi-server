@@ -30,14 +30,15 @@ impl ContainerService {
 
                 sqlx::query(
                     r#"
-                    INSERT INTO containers (id, name, description, location, created_at, updated_at, is_disposed)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    INSERT INTO containers (id, name, description, location, image_url, created_at, updated_at, is_disposed)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                     "#,
                 )
                 .bind(&container_id)
                 .bind(&request.name)
                 .bind(&request.description)
                 .bind(&request.location)
+                .bind(&request.image_url)
                 .bind(now)
                 .bind(now)
                 .bind(false)
@@ -56,19 +57,20 @@ impl ContainerService {
 
                 let now = chrono::Utc::now();
 
-                let result = sqlx::query!(
+                let result = sqlx::query(
                     r#"
-                    INSERT INTO containers (id, name, description, location, created_at, updated_at, is_disposed)
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-                    "#,
-                    container_id,
-                    request.name,
-                    request.description,
-                    request.location,
-                    now,
-                    now,
-                    false
+                    INSERT INTO containers (id, name, description, location, image_url, created_at, updated_at, is_disposed)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                    "#
                 )
+                .bind(&container_id)
+                .bind(&request.name)
+                .bind(&request.description)
+                .bind(&request.location)
+                .bind(&request.image_url)
+                .bind(now)
+                .bind(now)
+                .bind(false)
                 .execute(pool)
                 .await?;
 
@@ -83,6 +85,7 @@ impl ContainerService {
                     name: request.name,
                     description: request.description,
                     location: request.location,
+                    image_url: request.image_url,
                     created_at: now,
                     updated_at: now,
                     is_disposed: false,
@@ -95,7 +98,7 @@ impl ContainerService {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let row = sqlx::query(
-                    "SELECT id, name, description, location, created_at, updated_at, is_disposed FROM containers WHERE id = $1"
+                    "SELECT id, name, description, location, image_url, created_at, updated_at, is_disposed FROM containers WHERE id = $1"
                 )
                 .bind(id)
                 .fetch_optional(pool)
@@ -107,6 +110,7 @@ impl ContainerService {
                         name: row.get("name"),
                         description: row.get("description"),
                         location: row.get("location"),
+                        image_url: row.get("image_url"),
                         created_at: row.get("created_at"),
                         updated_at: row.get("updated_at"),
                         is_disposed: row.get("is_disposed"),
@@ -116,7 +120,7 @@ impl ContainerService {
             }
             DatabasePool::Sqlite(pool) => {
                 let row = sqlx::query(
-                    "SELECT id, name, description, location, created_at, updated_at, is_disposed FROM containers WHERE id = ?"
+                    "SELECT id, name, description, location, image_url, created_at, updated_at, is_disposed FROM containers WHERE id = ?"
                 )
                 .bind(id)
                 .fetch_optional(pool)
@@ -128,6 +132,7 @@ impl ContainerService {
                         name: row.get("name"),
                         description: row.get("description"),
                         location: row.get("location"),
+                        image_url: row.get("image_url"),
                         created_at: row.get::<chrono::NaiveDateTime, _>("created_at").and_utc(),
                         updated_at: row.get::<chrono::NaiveDateTime, _>("updated_at").and_utc(),
                         is_disposed: {
@@ -156,13 +161,16 @@ impl ContainerService {
         &self,
         location_filter: Option<&str>,
         include_disposed: bool,
+        search: Option<&str>,
+        sort_by: &str,
+        sort_order: &str,
     ) -> AppResult<Vec<ContainerWithItemCount>> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
-                let mut query = String::from(
+                let mut query_str = String::from(
                     r#"
                     SELECT
-                        c.id, c.name, c.description, c.location, c.created_at, c.updated_at, c.is_disposed,
+                        c.id, c.name, c.description, c.location, c.image_url, c.created_at, c.updated_at, c.is_disposed,
                         COUNT(i.id) as item_count
                     FROM containers c
                     LEFT JOIN items i ON c.id = i.container_id AND i.storage_type = 'container' AND (i.is_disposed IS NULL OR i.is_disposed = false)
@@ -170,26 +178,51 @@ impl ContainerService {
                     "#,
                 );
 
-                let param_index = 1;
+                let mut param_index = 1;
 
                 if !include_disposed {
-                    query.push_str(" AND c.is_disposed = false");
+                    query_str.push_str(" AND c.is_disposed = false");
                 }
 
                 if location_filter.is_some() {
-                    query.push_str(&format!(" AND c.location = ${}", param_index));
+                    query_str.push_str(&format!(" AND c.location = ${}", param_index));
+                    param_index += 1;
                 }
 
-                query.push_str(" GROUP BY c.id, c.name, c.description, c.location, c.created_at, c.updated_at, c.is_disposed");
-                query.push_str(" ORDER BY c.created_at DESC");
+                if search.is_some() {
+                    let search_clause = format!(
+                        " AND (c.name ILIKE ${} OR c.description ILIKE ${} OR c.location ILIKE ${})",
+                        param_index, param_index + 1, param_index + 2
+                    );
+                    query_str.push_str(&search_clause);
+                }
 
-                let mut sqlx_query = sqlx::query(&query);
+                query_str.push_str(" GROUP BY c.id, c.name, c.description, c.location, c.image_url, c.created_at, c.updated_at, c.is_disposed");
+
+                let sort_column = match sort_by {
+                    "name" => "c.name",
+                    "location" => "c.location",
+                    "item_count" => "item_count",
+                    "created_at" => "c.created_at",
+                    "updated_at" => "c.updated_at",
+                    "is_disposed" => "c.is_disposed",
+                    _ => "c.created_at",
+                };
+                let sort_direction = if sort_order.eq_ignore_ascii_case("asc") { "ASC" } else { "DESC" };
+                query_str.push_str(&format!(" ORDER BY {} {}", sort_column, sort_direction));
+
+                let mut query = sqlx::query(&query_str);
 
                 if let Some(location) = location_filter {
-                    sqlx_query = sqlx_query.bind(location);
+                    query = query.bind(location);
                 }
 
-                let rows = sqlx_query.fetch_all(pool).await?;
+                if let Some(search_term) = search {
+                    let search_param = format!("%{}%", search_term);
+                    query = query.bind(search_param.clone()).bind(search_param.clone()).bind(search_param);
+                }
+
+                let rows = query.fetch_all(pool).await?;
 
                 let containers = rows
                     .into_iter()
@@ -199,6 +232,7 @@ impl ContainerService {
                             name: row.get("name"),
                             description: row.get("description"),
                             location: row.get("location"),
+                            image_url: row.get("image_url"),
                             created_at: row.get("created_at"),
                             updated_at: row.get("updated_at"),
                             is_disposed: row.get("is_disposed"),
@@ -213,7 +247,7 @@ impl ContainerService {
                 let mut query = String::from(
                     r#"
                     SELECT
-                        c.id, c.name, c.description, c.location, c.created_at, c.updated_at, c.is_disposed,
+                        c.id, c.name, c.description, c.location, c.image_url, c.created_at, c.updated_at, c.is_disposed,
                         COUNT(i.id) as item_count
                     FROM containers c
                     LEFT JOIN items i ON c.id = i.container_id AND i.storage_type = 'container' AND (i.is_disposed IS NULL OR i.is_disposed = 0)
@@ -232,7 +266,27 @@ impl ContainerService {
                     params.push(location.to_string());
                 }
 
-                query.push_str(" GROUP BY c.id ORDER BY c.created_at DESC");
+                if let Some(search_term) = search {
+                    query.push_str(" AND (c.name LIKE ? OR c.description LIKE ? OR c.location LIKE ?)");
+                    let search_param = format!("%{}%", search_term);
+                    params.push(search_param.clone());
+                    params.push(search_param.clone());
+                    params.push(search_param);
+                }
+
+                query.push_str(" GROUP BY c.id, c.name, c.description, c.location, c.image_url, c.created_at, c.updated_at, c.is_disposed");
+
+                let sort_column = match sort_by {
+                    "name" => "c.name",
+                    "location" => "c.location",
+                    "item_count" => "item_count",
+                    "created_at" => "c.created_at",
+                    "updated_at" => "c.updated_at",
+                    "is_disposed" => "c.is_disposed",
+                    _ => "c.created_at",
+                };
+                let sort_direction = if sort_order.eq_ignore_ascii_case("asc") { "ASC" } else { "DESC" };
+                query.push_str(&format!(" ORDER BY {} {}", sort_column, sort_direction));
 
                 let mut query_builder = sqlx::query(&query);
                 for param in params {
@@ -252,6 +306,7 @@ impl ContainerService {
                                 location: row
                                     .get::<Option<String>, _>("location")
                                     .unwrap_or_default(),
+                                image_url: row.get("image_url"),
                                 created_at: row
                                     .get::<Option<chrono::NaiveDateTime>, _>("created_at")
                                     .map(|dt| {
@@ -317,6 +372,11 @@ impl ContainerService {
                     param_index += 1;
                 }
 
+                if request.image_url.is_some() {
+                    updates.push(format!("image_url = ${}", param_index));
+                    param_index += 1;
+                }
+
                 if request.is_disposed.is_some() {
                     updates.push(format!("is_disposed = ${}", param_index));
                     param_index += 1;
@@ -354,6 +414,10 @@ impl ContainerService {
                     query_builder = query_builder.bind(is_disposed);
                 }
 
+                if let Some(image_url) = &request.image_url {
+                    query_builder = query_builder.bind(image_url);
+                }
+
                 query_builder = query_builder.bind(now).bind(id);
 
                 let result = query_builder.execute(pool).await?;
@@ -381,6 +445,11 @@ impl ContainerService {
                 if let Some(location) = &request.location {
                     updates.push("location = ?");
                     params.push(location.clone());
+                }
+
+                if let Some(image_url) = &request.image_url {
+                    updates.push("image_url = ?");
+                    params.push(image_url.clone());
                 }
 
                 if let Some(is_disposed) = request.is_disposed {
@@ -484,7 +553,7 @@ impl ContainerService {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 let rows = sqlx::query(
-                    "SELECT id, name, description, location, created_at, updated_at, is_disposed FROM containers WHERE location = $1 AND is_disposed = false ORDER BY name"
+                    "SELECT id, name, description, location, image_url, created_at, updated_at, is_disposed FROM containers WHERE location = $1 AND is_disposed = false ORDER BY name"
                 )
                 .bind(location)
                 .fetch_all(pool)
@@ -497,6 +566,7 @@ impl ContainerService {
                         name: row.get("name"),
                         description: row.get("description"),
                         location: row.get("location"),
+                        image_url: row.get("image_url"),
                         created_at: row.get("created_at"),
                         updated_at: row.get("updated_at"),
                         is_disposed: row.get("is_disposed"),
@@ -507,7 +577,7 @@ impl ContainerService {
             }
             DatabasePool::Sqlite(pool) => {
                 let rows = sqlx::query(
-                    "SELECT id, name, description, location, created_at, updated_at, is_disposed FROM containers WHERE location = ? AND is_disposed = 0 ORDER BY name"
+                    "SELECT id, name, description, location, image_url, created_at, updated_at, is_disposed FROM containers WHERE location = ? AND is_disposed = 0 ORDER BY name"
                 )
                 .bind(location)
                 .fetch_all(pool)
@@ -520,6 +590,7 @@ impl ContainerService {
                         name: row.get("name"),
                         description: row.get("description"),
                         location: row.get("location"),
+                        image_url: row.get("image_url"),
                         created_at: row.get::<chrono::NaiveDateTime, _>("created_at").and_utc(),
                         updated_at: row.get::<chrono::NaiveDateTime, _>("updated_at").and_utc(),
                         is_disposed: row.get("is_disposed"),
@@ -527,6 +598,127 @@ impl ContainerService {
                     .collect();
 
                 Ok(containers)
+            }
+        }
+    }
+
+    pub async fn check_container_id_exists(&self, id: &str) -> AppResult<bool> {
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                let result: (bool,) = sqlx::query_as("SELECT EXISTS(SELECT 1 FROM containers WHERE id = $1)")
+                    .bind(id)
+                    .fetch_one(pool)
+                    .await?;
+                Ok(result.0)
+            }
+            DatabasePool::Sqlite(pool) => {
+                let result: (i32,) = sqlx::query_as("SELECT EXISTS(SELECT 1 FROM containers WHERE id = ?)")
+                    .bind(id)
+                    .fetch_one(pool)
+                    .await?;
+                Ok(result.0 == 1)
+            }
+        }
+    }
+
+    pub async fn bulk_delete_containers(&self, ids: &[String]) -> AppResult<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+
+        // Check if any containers have items
+        let has_items = self.check_containers_have_items(ids).await?;
+        if has_items {
+            return Err(AppError::BadRequest(
+                "Cannot delete containers that contain items".to_string(),
+            ));
+        }
+
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                sqlx::query("DELETE FROM containers WHERE id = ANY($1)")
+                    .bind(ids)
+                    .execute(pool)
+                    .await?;
+            }
+            DatabasePool::Sqlite(pool) => {
+                let query = format!(
+                    "DELETE FROM containers WHERE id IN ({})",
+                    ids.iter().map(|_| "?").collect::<Vec<_>>().join(",")
+                );
+                let mut query_builder = sqlx::query(&query);
+                for id in ids {
+                    query_builder = query_builder.bind(id);
+                }
+                query_builder.execute(pool).await?;
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn bulk_update_disposed_status(
+        &self,
+        ids: &[String],
+        is_disposed: bool,
+    ) -> AppResult<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+
+        let now = chrono::Utc::now();
+
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                sqlx::query("UPDATE containers SET is_disposed = $1, updated_at = $2 WHERE id = ANY($3)")
+                    .bind(is_disposed)
+                    .bind(now)
+                    .bind(ids)
+                    .execute(pool)
+                    .await?;
+            }
+            DatabasePool::Sqlite(pool) => {
+                let query = format!(
+                    "UPDATE containers SET is_disposed = ?, updated_at = ? WHERE id IN ({})",
+                    ids.iter().map(|_| "?").collect::<Vec<_>>().join(",")
+                );
+                let mut query_builder = sqlx::query(&query);
+                query_builder = query_builder.bind(is_disposed);
+                query_builder = query_builder.bind(now);
+                for id in ids {
+                    query_builder = query_builder.bind(id);
+                }
+                query_builder.execute(pool).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn check_containers_have_items(&self, ids: &[String]) -> AppResult<bool> {
+        if ids.is_empty() {
+            return Ok(false);
+        }
+
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                let count: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) FROM items WHERE container_id = ANY($1) AND storage_type = 'container' AND (is_disposed IS NULL OR is_disposed = false)"
+                )
+                .bind(ids)
+                .fetch_one(pool)
+                .await?;
+                Ok(count > 0)
+            }
+            DatabasePool::Sqlite(pool) => {
+                let query = format!(
+                    "SELECT COUNT(*) FROM items WHERE container_id IN ({}) AND storage_type = 'container' AND (is_disposed IS NULL OR is_disposed = 0)",
+                    ids.iter().map(|_| "?").collect::<Vec<_>>().join(",")
+                );
+                let mut query_builder = sqlx::query_scalar(&query);
+                for id in ids {
+                    query_builder = query_builder.bind(id);
+                }
+                let count: i64 = query_builder.fetch_one(pool).await?;
+                Ok(count > 0)
             }
         }
     }

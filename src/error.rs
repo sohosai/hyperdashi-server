@@ -5,6 +5,7 @@ use axum::{
 };
 use serde_json::json;
 use std::fmt;
+use sqlx::migrate::MigrateError;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -101,6 +102,12 @@ impl From<config::ConfigError> for AppError {
 impl From<std::io::Error> for AppError {
     fn from(err: std::io::Error) -> Self {
         AppError::IoError(err)
+    }
+}
+
+impl From<MigrateError> for AppError {
+    fn from(err: MigrateError) -> Self {
+        AppError::DatabaseError(sqlx::Error::Migrate(Box::new(err)))
     }
 }
 

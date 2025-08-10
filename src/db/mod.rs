@@ -1,6 +1,7 @@
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use std::str::FromStr;
+use sqlx::migrate::Migrator;
 
 use crate::config::Config;
 use crate::error::AppResult;
@@ -43,20 +44,14 @@ impl DatabasePool {
     pub async fn migrate(&self) -> AppResult<()> {
         match self {
             DatabasePool::Postgres(pool) => {
-                sqlx::migrate!("./migrations")
+                Migrator::new(std::path::Path::new("./migrations/postgres")).await?
                     .run(pool)
-                    .await
-                    .map_err(|e| {
-                        crate::error::AppError::DatabaseError(sqlx::Error::Migrate(Box::new(e)))
-                    })?;
+                    .await?;
             }
             DatabasePool::Sqlite(pool) => {
-                sqlx::migrate!("./migrations")
+                Migrator::new(std::path::Path::new("./migrations/sqlite")).await?
                     .run(pool)
-                    .await
-                    .map_err(|e| {
-                        crate::error::AppError::DatabaseError(sqlx::Error::Migrate(Box::new(e)))
-                    })?;
+                    .await?;
             }
         }
         Ok(())
@@ -82,7 +77,7 @@ macro_rules! query_as {
     ($query:expr, $pool:expr) => {
         match $pool {
             $crate::db::DatabasePool::Postgres(pool) => {
-                sqlx::query_as!($query).fetch_all(pool).await
+                sqlx::query_as($query).fetch_all(pool).await
             }
             $crate::db::DatabasePool::Sqlite(pool) => sqlx::query_as!($query).fetch_all(pool).await,
         }

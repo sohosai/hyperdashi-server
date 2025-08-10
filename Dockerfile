@@ -67,8 +67,8 @@ RUN mkdir -p /app/data /app/uploads
 # 所有権を変更
 RUN chown -R hyperdashi:hyperdashi /app
 
-# Rootユーザーのままでinit.shを実行し、内部でhyperdashiユーザーに切り替える
-# USER hyperdashi
+# hyperdashiユーザーに切り替え
+USER hyperdashi
 
 # ポートを公開
 EXPOSE 8080
@@ -77,5 +77,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
-# アプリケーションを実行
-CMD ["/usr/local/bin/init.sh"]
+# データディレクトリとアップロードディレクトリを作成
+RUN mkdir -p /app/data /app/uploads && chown -R hyperdashi:hyperdashi /app/data /app/uploads
+
+# アプリケーションを直接実行
+CMD ["hyperdashi-server"]

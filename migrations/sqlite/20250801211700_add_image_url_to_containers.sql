@@ -1,0 +1,1 @@
+ALTER TABLE containers ADD COLUMN image_url TEXT;
