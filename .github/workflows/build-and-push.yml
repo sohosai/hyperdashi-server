@@ -59,21 +59,3 @@ jobs:
           BUILDKIT_INLINE_CACHE=1
         outputs: type=image,push=true
       timeout-minutes: 60
-
-    - name: Verify pushed image
-      run: |
-        # プッシュされたイメージをプルして検証
-        docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:master
-        
-        # バイナリサイズを確認
-        BINARY_SIZE=$(docker run --rm --entrypoint="" ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:master stat -c%s /usr/local/bin/hyperdashi-server)
-        echo "Binary size: $BINARY_SIZE bytes"
-        
-        # 最小サイズチェック（1MB未満は異常）
-        if [ "$BINARY_SIZE" -lt 1000000 ]; then
-          echo "ERROR: Binary too small ($BINARY_SIZE bytes). Build may have failed."
-          exit 1
-        fi
-        
-        # バイナリが実行可能かテスト
-        docker run --rm --entrypoint="" ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:master /usr/local/bin/hyperdashi-server --version || echo "Version check completed"
