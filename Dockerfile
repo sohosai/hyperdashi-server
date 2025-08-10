@@ -41,7 +41,6 @@ RUN apt-get update && apt-get install -y \
     libssl3 \
     libpq5 \
     curl \
-    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # 非rootユーザーを作成
@@ -53,19 +52,12 @@ COPY --from=builder /usr/src/hyperdashi/target/release/hyperdashi-server /usr/lo
 # マイグレーションファイルをコピー
 COPY --from=builder /usr/src/hyperdashi/migrations /app/migrations
 
-# 初期化スクリプトをコピー
-COPY init.sh /usr/local/bin/init.sh
-RUN sed -i 's/\r$//' /usr/local/bin/init.sh && \
-    chmod +x /usr/local/bin/init.sh
 
 # 作業ディレクトリを設定
 WORKDIR /app
 
-# データディレクトリとアップロードディレクトリを作成
-RUN mkdir -p /app/data /app/uploads
-
-# 所有権を変更
-RUN chown -R hyperdashi:hyperdashi /app
+# データディレクトリとアップロードディレクトリを作成し、所有権を変更
+RUN mkdir -p /app/data /app/uploads && chown -R hyperdashi:hyperdashi /app
 
 # hyperdashiユーザーに切り替え
 USER hyperdashi
@@ -76,9 +68,6 @@ EXPOSE 8080
 # ヘルスチェック
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
-
-# データディレクトリとアップロードディレクトリを作成
-RUN mkdir -p /app/data /app/uploads && chown -R hyperdashi:hyperdashi /app/data /app/uploads
 
 # アプリケーションを直接実行
 CMD ["hyperdashi-server"]
