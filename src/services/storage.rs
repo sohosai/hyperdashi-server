@@ -1,4 +1,5 @@
 use aws_sdk_s3::Client as S3Client;
+use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use uuid::Uuid;
@@ -100,6 +101,11 @@ impl S3Storage {
         if std::env::var("S3_ENDPOINT").is_ok() {
             s3_config_builder = s3_config_builder.force_path_style(true);
         }
+
+        // Add checksum settings
+        s3_config_builder = s3_config_builder
+            .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
+            .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
 
         let aws_s3_config = s3_config_builder.build();
         let client = S3Client::from_conf(aws_s3_config);
