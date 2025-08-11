@@ -1,5 +1,6 @@
 use aws_sdk_s3::Client as S3Client;
 use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation};
+use aws_sdk_s3::types::ObjectCannedAcl;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use uuid::Uuid;
@@ -142,6 +143,7 @@ impl S3Storage {
             .key(&key)
             .body(data.into())
             .content_type(content_type)
+            .acl(ObjectCannedAcl::PublicRead)
             .send()
             .await
             .map_err(|e| {
@@ -167,6 +169,7 @@ impl S3Storage {
             .key(&key)
             .body(data.into())
             .content_type(content_type)
+            .acl(ObjectCannedAcl::PublicRead)
             .send()
             .await
             .map_err(|e| {
