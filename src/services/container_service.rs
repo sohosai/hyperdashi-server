@@ -410,12 +410,12 @@ impl ContainerService {
                     query_builder = query_builder.bind(location);
                 }
 
-                if let Some(is_disposed) = request.is_disposed {
-                    query_builder = query_builder.bind(is_disposed);
-                }
-
                 if let Some(image_url) = &request.image_url {
                     query_builder = query_builder.bind(image_url);
+                }
+
+                if let Some(is_disposed) = request.is_disposed {
+                    query_builder = query_builder.bind(is_disposed);
                 }
 
                 query_builder = query_builder.bind(now).bind(id);
