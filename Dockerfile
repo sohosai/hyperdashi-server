@@ -1,6 +1,9 @@
 # ビルドステージ
 # Debian bookwormベースのRustイメージを使用（実行環境と同じGLIBCバージョン）
-FROM rust:bookworm AS builder
+FROM rust:1.75-bookworm AS builder
+
+# GLIBCバージョンを確認（デバッグ用）
+RUN ldd --version | head -n1
 
 # 作業ディレクトリを設定
 WORKDIR /usr/src/hyperdashi
@@ -35,6 +38,9 @@ RUN ls -lh target/release/hyperdashi-server && \
 
 # 実行ステージ
 FROM debian:bookworm-slim
+
+# GLIBCバージョンを確認（デバッグ用）
+RUN ldd --version | head -n1
 
 # 必要なランタイムライブラリをインストール
 RUN apt-get update && apt-get install -y \

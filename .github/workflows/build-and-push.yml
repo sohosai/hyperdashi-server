@@ -52,8 +52,10 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        # キャッシュを一時的に無効化（GLIBCバージョン問題を解決するため）
+        # cache-from: type=gha
+        # cache-to: type=gha,mode=max
+        no-cache: true
         platforms: linux/amd64
         build-args: |
           BUILDKIT_INLINE_CACHE=1
