@@ -1,5 +1,6 @@
 # ビルドステージ
-FROM rust:latest AS builder
+# Debian bookwormベースのRustイメージを使用（実行環境と同じGLIBCバージョン）
+FROM rust:bookworm AS builder
 
 # 作業ディレクトリを設定
 WORKDIR /usr/src/hyperdashi
