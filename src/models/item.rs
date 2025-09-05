@@ -11,7 +11,7 @@ pub struct Item {
     pub model_number: Option<String>,
     pub remarks: Option<String>,
     pub purchase_year: Option<i64>,
-    pub purchase_amount: Option<f64>,
+    pub purchase_amount: Option<f32>,
     pub durability_years: Option<i64>,
     pub is_depreciation_target: Option<bool>,
     pub connection_names: Option<Vec<String>>,
@@ -43,7 +43,7 @@ pub struct CreateItemRequest {
     #[validate(range(min = 1900, max = 2100))]
     pub purchase_year: Option<i64>,
 
-    pub purchase_amount: Option<f64>,
+    pub purchase_amount: Option<f32>,
 
     #[validate(range(min = 1, max = 100))]
     pub durability_years: Option<i64>,
@@ -82,7 +82,7 @@ pub struct UpdateItemRequest {
     #[validate(range(min = 1900, max = 2100))]
     pub purchase_year: Option<i64>,
 
-    pub purchase_amount: Option<f64>,
+    pub purchase_amount: Option<f32>,
 
     #[validate(range(min = 1, max = 100))]
     pub durability_years: Option<i64>,
