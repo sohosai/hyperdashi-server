@@ -17,6 +17,8 @@ pub struct Container {
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct CreateContainerRequest {
     #[validate(length(min = 1, max = 100))]
+    pub id: Option<String>,
+    #[validate(length(min = 1, max = 100))]
     pub name: String,
     pub description: Option<String>,
     #[validate(length(min = 1, max = 100))]

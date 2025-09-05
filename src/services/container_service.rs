@@ -20,11 +20,15 @@ impl ContainerService {
     pub async fn create_container(&self, request: CreateContainerRequest) -> AppResult<Container> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
-                // Generate container ID using the same method as items
-                let container_ids = self.item_service.generate_label_ids(1).await?;
-                let container_id = container_ids.into_iter().next().ok_or_else(|| {
-                    AppError::InternalServerError("Failed to generate container ID".to_string())
-                })?;
+                // Use provided ID or generate one
+                let container_id = if let Some(id) = &request.id {
+                    id.clone()
+                } else {
+                    let container_ids = self.item_service.generate_label_ids(1).await?;
+                    container_ids.into_iter().next().ok_or_else(|| {
+                        AppError::InternalServerError("Failed to generate container ID".to_string())
+                    })?
+                };
 
                 let now = chrono::Utc::now();
 
@@ -49,11 +53,15 @@ impl ContainerService {
                 self.get_container(&container_id).await
             }
             DatabasePool::Sqlite(pool) => {
-                // Generate container ID using the same method as items
-                let container_ids = self.item_service.generate_label_ids(1).await?;
-                let container_id = container_ids.into_iter().next().ok_or_else(|| {
-                    AppError::InternalServerError("Failed to generate container ID".to_string())
-                })?;
+                // Use provided ID or generate one
+                let container_id = if let Some(id) = &request.id {
+                    id.clone()
+                } else {
+                    let container_ids = self.item_service.generate_label_ids(1).await?;
+                    container_ids.into_iter().next().ok_or_else(|| {
+                        AppError::InternalServerError("Failed to generate container ID".to_string())
+                    })?
+                };
 
                 let now = chrono::Utc::now();
 
@@ -81,7 +89,7 @@ impl ContainerService {
                 }
 
                 Ok(Container {
-                    id: container_id,
+                    id: container_id.clone(),
                     name: request.name,
                     description: request.description,
                     location: request.location,
