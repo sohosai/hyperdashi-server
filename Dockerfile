@@ -1,6 +1,6 @@
 # ビルドステージ
 # Debian bookwormベースのRustイメージを使用（実行環境と同じGLIBCバージョン）
-FROM rust:1.89-bookworm AS builder
+FROM rust:1.75-bookworm AS builder
 
 # GLIBCバージョンを確認（デバッグ用）
 RUN ldd --version | head -n1
