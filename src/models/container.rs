@@ -37,9 +37,17 @@ pub struct UpdateContainerRequest {
     pub image_url: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ContainerWithItemCount {
     #[serde(flatten)]
     pub container: Container,
     pub item_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContainersListResponse {
+    pub containers: Vec<ContainerWithItemCount>,
+    pub total: i64,
+    pub page: u32,
+    pub per_page: u32,
 }

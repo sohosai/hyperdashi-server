@@ -8,17 +8,29 @@ use validator::Validate;
 
 use crate::error::AppError;
 use crate::models::{
-    Container, ContainerWithItemCount, CreateContainerRequest, UpdateContainerRequest,
+    Container, ContainerWithItemCount, ContainersListResponse, CreateContainerRequest, UpdateContainerRequest,
 };
 
 
 #[derive(Debug, Deserialize)]
 pub struct ListContainersQuery {
+    #[serde(default = "default_page")]
+    pub page: u32,
+    #[serde(default = "default_per_page")]
+    pub per_page: u32,
     pub location: Option<String>,
     pub include_disposed: Option<bool>,
     pub search: Option<String>,
     pub sort_by: Option<String>,
     pub sort_order: Option<String>,
+}
+
+fn default_page() -> u32 {
+    1
+}
+
+fn default_per_page() -> u32 {
+    20
 }
 
 #[derive(Debug, Serialize)]
@@ -31,10 +43,6 @@ pub struct GetContainerResponse {
     pub container: Container,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ListContainersResponse {
-    pub containers: Vec<ContainerWithItemCount>,
-}
 
 #[derive(Debug, Serialize)]
 pub struct UpdateContainerResponse {
@@ -71,7 +79,7 @@ pub async fn get_container(
 pub async fn list_containers(
     State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
     Query(query): Query<ListContainersQuery>,
-) -> Result<Json<ListContainersResponse>, StatusCode> {
+) -> Result<Json<ContainersListResponse>, StatusCode> {
     let location_filter = query.location.as_deref();
     let include_disposed = query.include_disposed.unwrap_or(false);
     let search = query.search.as_deref();
@@ -80,6 +88,8 @@ pub async fn list_containers(
 
     match container_service
         .list_containers(
+            query.page,
+            query.per_page,
             location_filter,
             include_disposed,
             search,
@@ -88,7 +98,7 @@ pub async fn list_containers(
         )
         .await
     {
-        Ok(containers) => Ok(Json(ListContainersResponse { containers })),
+        Ok(response) => Ok(Json(response)),
         Err(e) => {
            tracing::error!("Failed to list containers: {:?}", e);
            Err(StatusCode::INTERNAL_SERVER_ERROR)

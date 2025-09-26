@@ -10,9 +10,9 @@ pub struct Item {
     pub label_id: String,
     pub model_number: Option<String>,
     pub remarks: Option<String>,
-    pub purchase_year: Option<i64>,
+    pub purchase_year: Option<i32>,
     pub purchase_amount: Option<f32>,
-    pub durability_years: Option<i64>,
+    pub durability_years: Option<i32>,
     pub is_depreciation_target: Option<bool>,
     pub connection_names: Option<Vec<String>>,
     pub cable_color_pattern: Option<Vec<String>>,
@@ -41,12 +41,12 @@ pub struct CreateItemRequest {
     pub remarks: Option<String>,
 
     #[validate(range(min = 1900, max = 2100))]
-    pub purchase_year: Option<i64>,
+    pub purchase_year: Option<i32>,
 
     pub purchase_amount: Option<f32>,
 
     #[validate(range(min = 1, max = 100))]
-    pub durability_years: Option<i64>,
+    pub durability_years: Option<i32>,
 
     pub is_depreciation_target: Option<bool>,
 
@@ -80,12 +80,12 @@ pub struct UpdateItemRequest {
     pub remarks: Option<String>,
 
     #[validate(range(min = 1900, max = 2100))]
-    pub purchase_year: Option<i64>,
+    pub purchase_year: Option<i32>,
 
     pub purchase_amount: Option<f32>,
 
     #[validate(range(min = 1, max = 100))]
-    pub durability_years: Option<i64>,
+    pub durability_years: Option<i32>,
 
     pub is_depreciation_target: Option<bool>,
 

@@ -1,7 +1,7 @@
 use crate::db::DatabasePool;
 use crate::error::{AppError, AppResult};
 use crate::models::{
-    Container, ContainerWithItemCount, CreateContainerRequest, UpdateContainerRequest,
+    Container, ContainerWithItemCount, ContainersListResponse, CreateContainerRequest, UpdateContainerRequest,
 };
 use crate::services::item_service::ItemService;
 use sqlx::Row;
@@ -167,14 +167,59 @@ impl ContainerService {
 
     pub async fn list_containers(
         &self,
+        page: u32,
+        per_page: u32,
         location_filter: Option<&str>,
         include_disposed: bool,
         search: Option<&str>,
         sort_by: &str,
         sort_order: &str,
-    ) -> AppResult<Vec<ContainerWithItemCount>> {
+    ) -> AppResult<ContainersListResponse> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
+                // First, get the total count
+                let mut count_query_str = String::from(
+                    r#"
+                    SELECT COUNT(DISTINCT c.id) as total
+                    FROM containers c
+                    WHERE 1=1
+                    "#,
+                );
+
+                let mut count_param_index = 1;
+
+                if !include_disposed {
+                    count_query_str.push_str(" AND c.is_disposed = false");
+                }
+
+                if location_filter.is_some() {
+                    count_query_str.push_str(&format!(" AND c.location = ${}", count_param_index));
+                    count_param_index += 1;
+                }
+
+                if search.is_some() {
+                    let search_clause = format!(
+                        " AND (c.name ILIKE ${} OR c.description ILIKE ${} OR c.location ILIKE ${})",
+                        count_param_index, count_param_index + 1, count_param_index + 2
+                    );
+                    count_query_str.push_str(&search_clause);
+                }
+
+                let mut count_query = sqlx::query(&count_query_str);
+
+                if let Some(location) = location_filter {
+                    count_query = count_query.bind(location);
+                }
+
+                if let Some(search_term) = search {
+                    let search_param = format!("%{}%", search_term);
+                    count_query = count_query.bind(search_param.clone()).bind(search_param.clone()).bind(search_param.clone());
+                }
+
+                let count_row = count_query.fetch_one(pool).await?;
+                let total: i64 = count_row.get("total");
+
+                // Now get the paginated data
                 let mut query_str = String::from(
                     r#"
                     SELECT
@@ -203,6 +248,7 @@ impl ContainerService {
                         param_index, param_index + 1, param_index + 2
                     );
                     query_str.push_str(&search_clause);
+                    param_index += 3;
                 }
 
                 query_str.push_str(" GROUP BY c.id, c.name, c.description, c.location, c.image_url, c.created_at, c.updated_at, c.is_disposed");
@@ -219,6 +265,10 @@ impl ContainerService {
                 let sort_direction = if sort_order.eq_ignore_ascii_case("asc") { "ASC" } else { "DESC" };
                 query_str.push_str(&format!(" ORDER BY {} {}", sort_column, sort_direction));
 
+                // Add pagination
+                let offset = ((page - 1) * per_page) as i64;
+                query_str.push_str(&format!(" LIMIT ${} OFFSET ${}", param_index, param_index + 1));
+
                 let mut query = sqlx::query(&query_str);
 
                 if let Some(location) = location_filter {
@@ -229,6 +279,8 @@ impl ContainerService {
                     let search_param = format!("%{}%", search_term);
                     query = query.bind(search_param.clone()).bind(search_param.clone()).bind(search_param);
                 }
+
+                query = query.bind(per_page as i64).bind(offset);
 
                 let rows = query.fetch_all(pool).await?;
 
@@ -249,9 +301,51 @@ impl ContainerService {
                     })
                     .collect();
 
-                Ok(containers)
+                Ok(ContainersListResponse {
+                    containers,
+                    total,
+                    page,
+                    per_page,
+                })
             }
             DatabasePool::Sqlite(pool) => {
+                // First, get the total count
+                let mut count_query = String::from(
+                    r#"
+                    SELECT COUNT(DISTINCT c.id) as total
+                    FROM containers c
+                    WHERE 1=1
+                    "#,
+                );
+
+                let mut count_params: Vec<String> = Vec::new();
+
+                if !include_disposed {
+                    count_query.push_str(" AND c.is_disposed = 0");
+                }
+
+                if let Some(location) = location_filter {
+                    count_query.push_str(" AND c.location = ?");
+                    count_params.push(location.to_string());
+                }
+
+                if let Some(search_term) = search {
+                    count_query.push_str(" AND (c.name LIKE ? OR c.description LIKE ? OR c.location LIKE ?)");
+                    let search_param = format!("%{}%", search_term);
+                    count_params.push(search_param.clone());
+                    count_params.push(search_param.clone());
+                    count_params.push(search_param);
+                }
+
+                let mut count_query_builder = sqlx::query(&count_query);
+                for param in count_params {
+                    count_query_builder = count_query_builder.bind(param);
+                }
+
+                let count_row = count_query_builder.fetch_one(pool).await?;
+                let total: i64 = count_row.get("total");
+
+                // Now get the paginated data
                 let mut query = String::from(
                     r#"
                     SELECT
@@ -295,6 +389,10 @@ impl ContainerService {
                 };
                 let sort_direction = if sort_order.eq_ignore_ascii_case("asc") { "ASC" } else { "DESC" };
                 query.push_str(&format!(" ORDER BY {} {}", sort_column, sort_direction));
+
+                // Add pagination
+                let offset = (page - 1) * per_page;
+                query.push_str(&format!(" LIMIT {} OFFSET {}", per_page, offset));
 
                 let mut query_builder = sqlx::query(&query);
                 for param in params {
@@ -350,7 +448,12 @@ impl ContainerService {
                     })
                     .collect();
 
-                Ok(containers)
+                Ok(ContainersListResponse {
+                    containers,
+                    total,
+                    page,
+                    per_page,
+                })
             }
         }
     }
