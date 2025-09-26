@@ -1,6 +1,6 @@
 # ビルドステージ
 # Debian bookwormベースのRustイメージを使用（実行環境と同じGLIBCバージョン）
-FROM rust:1.75-bookworm AS builder
+FROM rust:1.83-bookworm AS builder
 
 # GLIBCバージョンを確認（デバッグ用）
 RUN ldd --version | head -n1
@@ -8,8 +8,8 @@ RUN ldd --version | head -n1
 # 作業ディレクトリを設定
 WORKDIR /usr/src/hyperdashi
 
-# Rustツールチェインを更新
-RUN rustup update stable
+# Rustツールチェインを更新（最新安定版を利用）
+RUN rustup update stable && rustup default stable
 
 # ソースコードをコピー
 COPY . .
