@@ -32,7 +32,7 @@ fn default_per_page() -> u32 {
 }
 
 pub async fn list_items(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Query(params): Query<ItemsQuery>,
 ) -> AppResult<Json<ItemsListResponse>> {
     let response = item_service
@@ -51,7 +51,7 @@ pub async fn list_items(
 }
 
 pub async fn get_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.get_item(id).await?;
@@ -59,7 +59,7 @@ pub async fn get_item(
 }
 
 pub async fn get_item_by_label(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(label_id): Path<String>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.get_item_by_label(&label_id).await?;
@@ -67,7 +67,7 @@ pub async fn get_item_by_label(
 }
 
 pub async fn create_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Json(req): Json<CreateItemRequest>,
 ) -> AppResult<(StatusCode, Json<Item>)> {
     req.validate()
@@ -78,7 +78,7 @@ pub async fn create_item(
 }
 
 pub async fn update_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateItemRequest>,
 ) -> AppResult<Json<Item>> {
@@ -90,7 +90,7 @@ pub async fn update_item(
 }
 
 pub async fn delete_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<StatusCode> {
     item_service.delete_item(id).await?;
@@ -98,7 +98,7 @@ pub async fn delete_item(
 }
 
 pub async fn dispose_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.dispose_item(id).await?;
@@ -106,7 +106,7 @@ pub async fn dispose_item(
 }
 
 pub async fn undispose_item(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(id): Path<Uuid>,
 ) -> AppResult<Json<Item>> {
     let item = item_service.undispose_item(id).await?;
@@ -119,14 +119,14 @@ pub struct SuggestionsResponse {
 }
 
 pub async fn get_connection_names_suggestions(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
 ) -> AppResult<Json<SuggestionsResponse>> {
     let suggestions = item_service.get_connection_names_suggestions().await?;
     Ok(Json(SuggestionsResponse { suggestions }))
 }
 
 pub async fn get_storage_locations_suggestions(
-    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
 ) -> AppResult<Json<SuggestionsResponse>> {
     let suggestions = item_service.get_storage_locations_suggestions().await?;
     Ok(Json(SuggestionsResponse { suggestions }))
@@ -135,7 +135,7 @@ pub async fn get_storage_locations_suggestions(
 use axum::extract::Multipart;
 
 pub async fn add_item_image(
-    State((storage, _cable, item_service, _loan, _container)): State<crate::AppState>,
+    State((storage, _cable, item_service, _loan, _container, _connector, _tag)): State<crate::AppState>,
     Path(id): Path<String>,
     mut multipart: Multipart,
 ) -> Result<Json<Item>, StatusCode> {
@@ -167,7 +167,7 @@ pub struct BulkDeleteItemsRequest {
 }
 
 pub async fn bulk_delete_items(
-    State((_storage, _cable, item_service, _loan, _container)): State<crate::AppState>,
+    State((_storage, _cable, item_service, _loan, _container, _connector, _tag)): State<crate::AppState>,
     Json(request): Json<BulkDeleteItemsRequest>,
 ) -> AppResult<StatusCode> {
     item_service.bulk_delete_items(&request.ids).await?;
@@ -181,7 +181,7 @@ pub struct BulkUpdateItemsDisposedStatusRequest {
 }
 
 pub async fn bulk_update_items_disposed_status(
-    State((_storage, _cable, item_service, _loan, _container)): State<crate::AppState>,
+    State((_storage, _cable, item_service, _loan, _container, _connector, _tag)): State<crate::AppState>,
     Json(request): Json<BulkUpdateItemsDisposedStatusRequest>,
 ) -> AppResult<StatusCode> {
     item_service

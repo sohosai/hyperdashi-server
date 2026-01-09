@@ -29,7 +29,7 @@ fn default_per_page() -> u32 {
 }
 
 pub async fn list_loans(
-    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Query(params): Query<LoansQuery>,
 ) -> AppResult<Json<LoansListResponse>> {
     let response = loan_service
@@ -46,7 +46,7 @@ pub async fn list_loans(
 }
 
 pub async fn get_loan(
-    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(id): Path<i64>,
 ) -> AppResult<Json<Loan>> {
     let loan = loan_service.get_loan(id).await?;
@@ -54,7 +54,7 @@ pub async fn get_loan(
 }
 
 pub async fn create_loan(
-    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Json(req): Json<CreateLoanRequest>,
 ) -> AppResult<(StatusCode, Json<Loan>)> {
     req.validate()
@@ -65,7 +65,7 @@ pub async fn create_loan(
 }
 
 pub async fn return_loan(
-    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service)): State<crate::AppState>,
+    State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
     Path(id): Path<i64>,
     Json(req): Json<ReturnLoanRequest>,
 ) -> AppResult<Json<Loan>> {
@@ -77,7 +77,7 @@ pub async fn return_loan(
 }
 
 pub async fn get_active_loan_for_item(
-   State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service)): State<crate::AppState>,
+   State((_storage_service, _cable_color_service, _item_service, loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
    Path(item_id): Path<String>,
 ) -> AppResult<Json<Option<Loan>>> {
    let loan = loan_service.get_active_loan_for_item(&item_id).await?;

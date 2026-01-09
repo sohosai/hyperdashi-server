@@ -1,15 +1,19 @@
 pub mod cable_colors;
+pub mod connectors;
 pub mod containers;
+pub mod ids;
 pub mod images;
 pub mod items;
 pub mod labels;
 pub mod loans;
-pub mod ids;
+pub mod tags;
 
 pub use cable_colors::*;
+pub use connectors::*;
 pub use containers::*;
+pub use ids::*;
 pub use images::*;
 pub use items::*;
 pub use labels::*;
 pub use loans::*;
-pub use ids::*;
+pub use tags::*;

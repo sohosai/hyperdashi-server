@@ -20,7 +20,10 @@ mod services;
 
 use crate::config::{Config, StorageType};
 use crate::db::DatabasePool;
-use crate::services::{CableColorService, ItemService, LoanService, StorageService, ContainerService};
+use crate::services::{
+    CableColorService, ConnectorService, ContainerService, ItemService, LoanService,
+    StorageService, TagService,
+};
 
 pub type AppState = (
     Arc<StorageService>,
@@ -28,10 +31,9 @@ pub type AppState = (
     Arc<ItemService>,
     Arc<LoanService>,
     Arc<ContainerService>,
+    Arc<ConnectorService>,
+    Arc<TagService>,
 );
-
-
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -67,6 +69,8 @@ async fn main() -> anyhow::Result<()> {
     let item_service = Arc::new(ItemService::new(db_pool.clone()));
     let loan_service = Arc::new(LoanService::new(db_pool.clone()));
     let container_service = Arc::new(ContainerService::new(db_pool.clone()));
+    let connector_service = Arc::new(ConnectorService::new(db_pool.clone()));
+    let tag_service = Arc::new(TagService::new(db_pool.clone()));
 
     // Create app states
     let app_state = (
@@ -75,6 +79,8 @@ async fn main() -> anyhow::Result<()> {
         item_service.clone(),
         loan_service,
         container_service,
+        connector_service,
+        tag_service,
     );
     let api_routes = Router::new()
         // Item routes
@@ -103,23 +109,23 @@ async fn main() -> anyhow::Result<()> {
             "/items/suggestions/storage_locations",
             get(handlers::get_storage_locations_suggestions),
         )
-       .route(
-           "/items/:itemId/active-loan",
-           get(handlers::get_active_loan_for_item),
-       )
-       .route(
-           "/items/bulk",
-           axum::routing::delete(handlers::bulk_delete_items),
-       )
-       .route(
-           "/items/bulk/disposed",
-           axum::routing::put(handlers::bulk_update_items_disposed_status),
-       )
-       // Cable color routes
-       .route(
-           "/cable_colors",
-           get(handlers::list_cable_colors).post(handlers::create_cable_color),
-       )
+        .route(
+            "/items/:itemId/active-loan",
+            get(handlers::get_active_loan_for_item),
+        )
+        .route(
+            "/items/bulk",
+            axum::routing::delete(handlers::bulk_delete_items),
+        )
+        .route(
+            "/items/bulk/disposed",
+            axum::routing::put(handlers::bulk_update_items_disposed_status),
+        )
+        // Cable color routes
+        .route(
+            "/cable_colors",
+            get(handlers::list_cable_colors).post(handlers::create_cable_color),
+        )
         .route(
             "/cable_colors/:id",
             get(handlers::get_cable_color)
@@ -127,7 +133,10 @@ async fn main() -> anyhow::Result<()> {
                 .delete(handlers::delete_cable_color),
         )
         // Loan routes
-        .route("/loans", get(handlers::list_loans).post(handlers::create_loan))
+        .route(
+            "/loans",
+            get(handlers::list_loans).post(handlers::create_loan),
+        )
         .route("/loans/:id", get(handlers::get_loan))
         .route("/loans/:id/return", post(handlers::return_loan))
         .route("/loans/history", get(handlers::list_loans))
@@ -147,21 +156,42 @@ async fn main() -> anyhow::Result<()> {
                 .put(handlers::update_container)
                 .delete(handlers::delete_container),
         )
-       .route(
-           "/containers/bulk",
-           axum::routing::delete(handlers::bulk_delete_containers),
-       )
-       .route(
-           "/containers/bulk/disposed",
-           axum::routing::put(handlers::bulk_update_containers_disposed_status),
-       )
         .route(
-            "/containers/check/:id",
-            get(handlers::check_container_id),
+            "/containers/bulk",
+            axum::routing::delete(handlers::bulk_delete_containers),
         )
+        .route(
+            "/containers/bulk/disposed",
+            axum::routing::put(handlers::bulk_update_containers_disposed_status),
+        )
+        .route("/containers/check/:id", get(handlers::check_container_id))
         .route(
             "/containers/by-location/:location",
             get(handlers::get_containers_by_location),
+        )
+        // Connector routes
+        .route(
+            "/connectors",
+            get(handlers::list_connectors).post(handlers::create_connector),
+        )
+        .route(
+            "/connectors/:id",
+            get(handlers::get_connector)
+                .put(handlers::update_connector)
+                .delete(handlers::delete_connector),
+        )
+        // Tag routes
+        .route("/tags", get(handlers::list_tags).post(handlers::create_tag))
+        .route(
+            "/tags/:id",
+            get(handlers::get_tag)
+                .put(handlers::update_tag)
+                .delete(handlers::delete_tag),
+        )
+        // Item-tag association routes
+        .route(
+            "/items/:item_id/tags",
+            get(handlers::get_item_tags).put(handlers::set_item_tags),
         )
         // Image routes - larger body limit for file uploads
         .route(
@@ -170,7 +200,10 @@ async fn main() -> anyhow::Result<()> {
                 config.storage.max_file_size_mb as usize * 1024 * 1024 * 2,
             )), // 2倍のマージンを設定
         )
-       .route("/images/:filename", axum::routing::delete(handlers::delete_image))
+        .route(
+            "/images/:filename",
+            axum::routing::delete(handlers::delete_image),
+        )
         .with_state(app_state);
 
     let mut app = Router::new()

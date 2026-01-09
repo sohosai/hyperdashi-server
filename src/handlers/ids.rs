@@ -21,7 +21,15 @@ pub struct DuplicateItem {
 
 pub async fn check_global_id(
     Path(id): Path<String>,
-    State((_storage_service, _cable_color_service, item_service, _loan_service, container_service)): State<crate::AppState>,
+    State((
+        _storage_service,
+        _cable_color_service,
+        item_service,
+        _loan_service,
+        container_service,
+        _connector_service,
+        _tag_service,
+    )): State<crate::AppState>,
 ) -> AppResult<Json<IdCheckResponse>> {
     let mut found_in = Vec::new();
     let mut duplicates = Vec::new();

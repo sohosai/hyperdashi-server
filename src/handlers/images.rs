@@ -1,9 +1,9 @@
+use axum::extract::Path;
 use axum::{
     extract::{Multipart, State},
     http::StatusCode,
     Json,
 };
-use axum::extract::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::error::AppResult;
@@ -16,7 +16,15 @@ pub struct ImageUploadResponse {
 }
 
 pub async fn upload_image(
-    State((storage_service, _cable_color_service, _item_service, _loan_service, _container_service)): State<crate::AppState>,
+    State((
+        storage_service,
+        _cable_color_service,
+        _item_service,
+        _loan_service,
+        _container_service,
+        _connector_service,
+        _tag_service,
+    )): State<crate::AppState>,
     mut multipart: Multipart,
 ) -> AppResult<(StatusCode, Json<ImageUploadResponse>)> {
     tracing::info!("Starting image upload process");
@@ -127,15 +135,15 @@ pub async fn upload_image(
 }
 
 pub async fn delete_image(
-   State((storage_service, _, _, _, _)): State<crate::AppState>,
-   Path(filename): Path<String>,
+    State((storage_service, _, _, _, _, _, _)): State<crate::AppState>,
+    Path(filename): Path<String>,
 ) -> AppResult<StatusCode> {
-   tracing::info!("Attempting to delete image: {}", filename);
+    tracing::info!("Attempting to delete image: {}", filename);
 
-   storage_service.delete(&filename).await?;
+    storage_service.delete(&filename).await?;
 
-   tracing::info!("Successfully deleted image: {}", filename);
-   Ok(StatusCode::NO_CONTENT)
+    tracing::info!("Successfully deleted image: {}", filename);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn is_image_content_type(content_type: &str) -> bool {

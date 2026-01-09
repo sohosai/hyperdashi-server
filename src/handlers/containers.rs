@@ -50,7 +50,7 @@ pub struct UpdateContainerResponse {
 }
 
 pub async fn create_container(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Json(request): Json<CreateContainerRequest>,
 ) -> Result<(StatusCode, Json<CreateContainerResponse>), StatusCode> {
     if request.validate().is_err() {
@@ -67,7 +67,7 @@ pub async fn create_container(
 }
 
 pub async fn get_container(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<GetContainerResponse>, StatusCode> {
     match container_service.get_container(&id).await {
@@ -77,7 +77,7 @@ pub async fn get_container(
 }
 
 pub async fn list_containers(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Query(query): Query<ListContainersQuery>,
 ) -> Result<Json<ContainersListResponse>, StatusCode> {
     let location_filter = query.location.as_deref();
@@ -107,7 +107,7 @@ pub async fn list_containers(
 }
 
 pub async fn update_container(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Path(id): Path<String>,
     Json(request): Json<UpdateContainerRequest>,
 ) -> Result<Json<UpdateContainerResponse>, StatusCode> {
@@ -122,7 +122,7 @@ pub async fn update_container(
 }
 
 pub async fn delete_container(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
     match container_service.delete_container(&id).await {
@@ -137,7 +137,7 @@ pub struct CheckContainerIdResponse {
 }
 
 pub async fn check_container_id(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<CheckContainerIdResponse>, StatusCode> {
     match container_service.check_container_id_exists(&id).await {
@@ -152,7 +152,7 @@ pub struct GetContainersByLocationResponse {
 }
 
 pub async fn get_containers_by_location(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Path(location): Path<String>,
 ) -> Result<Json<GetContainersByLocationResponse>, StatusCode> {
     match container_service.get_containers_by_location(&location).await {
@@ -167,7 +167,7 @@ pub struct BulkDeleteContainersRequest {
 }
 
 pub async fn bulk_delete_containers(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Json(request): Json<BulkDeleteContainersRequest>,
 ) -> Result<StatusCode, StatusCode> {
     match container_service.bulk_delete_containers(&request.ids).await {
@@ -187,7 +187,7 @@ pub struct BulkUpdateContainersDisposedStatusRequest {
 }
 
 pub async fn bulk_update_containers_disposed_status(
-    State((_storage, _cable, _item_service, _loan, container_service)): State<crate::AppState>,
+    State((_storage, _cable, _item_service, _loan, container_service, _connector, _tag)): State<crate::AppState>,
     Json(request): Json<BulkUpdateContainersDisposedStatusRequest>,
 ) -> Result<StatusCode, StatusCode> {
     match container_service
