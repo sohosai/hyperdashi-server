@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -48,6 +48,35 @@ pub async fn list_items(
         .await?;
 
     Ok(Json(response))
+}
+
+pub async fn export_items_csv(
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
+    Query(params): Query<ItemsQuery>,
+) -> AppResult<(HeaderMap, String)> {
+    let items = item_service
+        .list_items_for_csv(
+            params.search,
+            params.is_on_loan,
+            params.is_disposed,
+            params.container_id,
+            params.storage_type,
+        )
+        .await?;
+
+    let csv = items_to_csv(&items);
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/csv; charset=utf-8"),
+    );
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_static("attachment; filename=\"items.csv\""),
+    );
+
+    Ok((headers, csv))
 }
 
 pub async fn get_item(
@@ -188,4 +217,88 @@ pub async fn bulk_update_items_disposed_status(
         .bulk_update_disposed_status(&request.ids, request.is_disposed)
         .await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+fn csv_escape(value: &str) -> String {
+    let needs_quotes =
+        value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r');
+    if !needs_quotes {
+        return value.to_string();
+    }
+
+    let escaped = value.replace('"', "\"\"");
+    format!("\"{}\"", escaped)
+}
+
+fn opt_bool_to_string(value: Option<bool>) -> String {
+    match value {
+        Some(true) => "TRUE".to_string(),
+        Some(false) => "FALSE".to_string(),
+        None => "".to_string(),
+    }
+}
+
+fn opt_vec_to_string(value: &Option<Vec<String>>) -> String {
+    value.as_ref().map(|v| v.join(";")).unwrap_or_default()
+}
+
+fn items_to_csv(items: &[Item]) -> String {
+    // NOTE: keep header labels stable because users may import by column name.
+    let headers = [
+        "ID",
+        "名称",
+        "ラベルID",
+        "型番",
+        "保管場所",
+        "コンテナID",
+        "保管方法",
+        "貸出中",
+        "廃棄済み",
+        "購入年",
+        "購入金額",
+        "耐用年数",
+        "減価償却対象",
+        "接続端子",
+        "ケーブル色",
+        "QR/バーコード種別",
+        "画像URL",
+        "備考",
+        "登録日時",
+        "更新日時",
+    ];
+
+    let mut out = String::new();
+    out.push_str(&headers.join(","));
+    out.push_str("\r\n");
+
+    for item in items {
+        let fields = [
+            item.id.to_string(),
+            item.name.clone(),
+            item.label_id.clone(),
+            item.model_number.clone().unwrap_or_default(),
+            item.storage_location.clone().unwrap_or_default(),
+            item.container_id.clone().unwrap_or_default(),
+            item.storage_type.clone(),
+            opt_bool_to_string(item.is_on_loan),
+            opt_bool_to_string(item.is_disposed),
+            item.purchase_year.map(|v| v.to_string()).unwrap_or_default(),
+            item.purchase_amount.map(|v| v.to_string()).unwrap_or_default(),
+            item.durability_years.map(|v| v.to_string()).unwrap_or_default(),
+            opt_bool_to_string(item.is_depreciation_target),
+            opt_vec_to_string(&item.connection_names),
+            opt_vec_to_string(&item.cable_color_pattern),
+            item.qr_code_type.clone().unwrap_or_default(),
+            item.image_url.clone().unwrap_or_default(),
+            item.remarks.clone().unwrap_or_default(),
+            item.created_at.to_rfc3339(),
+            item.updated_at.to_rfc3339(),
+        ];
+
+        let escaped_row: Vec<String> = fields.iter().map(|v| csv_escape(v)).collect();
+        out.push_str(&escaped_row.join(","));
+        out.push_str("\r\n");
+    }
+
+    out
 }

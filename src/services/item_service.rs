@@ -506,6 +506,209 @@ impl ItemService {
         }
     }
 
+    pub async fn list_items_for_csv(
+        &self,
+        search: Option<String>,
+        is_on_loan: Option<bool>,
+        is_disposed: Option<bool>,
+        container_id: Option<String>,
+        storage_type: Option<String>,
+    ) -> AppResult<Vec<Item>> {
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                // 動的WHEREクエリを構築（PostgreSQL版）
+                let mut where_conditions = Vec::new();
+                let mut param_index = 1;
+
+                // 検索条件
+                if search.is_some() {
+                    where_conditions.push(format!(
+                        "(name ILIKE ${} OR label_id ILIKE ${} OR model_number ILIKE ${} OR remarks ILIKE ${})",
+                        param_index,
+                        param_index + 1,
+                        param_index + 2,
+                        param_index + 3
+                    ));
+                    param_index += 4;
+                }
+
+                // 貸出状態フィルター
+                if is_on_loan.is_some() {
+                    where_conditions.push(format!("is_on_loan = ${}", param_index));
+                    param_index += 1;
+                }
+
+                // 廃棄状態フィルター
+                if is_disposed.is_some() {
+                    where_conditions.push(format!("is_disposed = ${}", param_index));
+                    param_index += 1;
+                }
+
+                // コンテナIDフィルター
+                if container_id.is_some() {
+                    where_conditions.push(format!("container_id = ${}", param_index));
+                    param_index += 1;
+                }
+
+                // 保管タイプフィルター
+                if storage_type.is_some() {
+                    where_conditions.push(format!("storage_type = ${}", param_index));
+                }
+
+                let where_clause = if where_conditions.is_empty() {
+                    String::new()
+                } else {
+                    format!("WHERE {}", where_conditions.join(" AND "))
+                };
+
+                let query_str = format!(
+                    r#"
+                    SELECT
+                        id, name, label_id, model_number, remarks, purchase_year,
+                        purchase_amount, durability_years, is_depreciation_target,
+                        connection_names, cable_color_pattern, storage_location,
+                        container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
+                        created_at, updated_at
+                    FROM items
+                    {}
+                    ORDER BY created_at DESC
+                    "#,
+                    where_clause
+                );
+
+                // パラメーターをバインド
+                let mut query = sqlx::query(&query_str);
+
+                // 検索条件
+                if let Some(search_term) = &search {
+                    let search_pattern = format!("%{}%", search_term);
+                    query = query
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern);
+                }
+
+                // 貸出状態フィルター
+                if let Some(loan_status) = is_on_loan {
+                    query = query.bind(loan_status);
+                }
+
+                // 廃棄状態フィルター
+                if let Some(disposed_status) = is_disposed {
+                    query = query.bind(disposed_status);
+                }
+
+                // コンテナIDフィルター
+                if let Some(container_id_val) = &container_id {
+                    query = query.bind(container_id_val);
+                }
+
+                // 保管タイプフィルター
+                if let Some(storage_type_val) = &storage_type {
+                    query = query.bind(storage_type_val);
+                }
+
+                let rows = query.fetch_all(pool).await?;
+                Ok(rows
+                    .into_iter()
+                    .map(|row| self.row_to_item_postgres(row))
+                    .collect())
+            }
+            DatabasePool::Sqlite(pool) => {
+                // 動的WHEREクエリを構築（SQLite版）
+                let mut where_conditions = Vec::new();
+
+                // 検索条件
+                if search.is_some() {
+                    where_conditions.push(
+                        "(name LIKE ? OR label_id LIKE ? OR model_number LIKE ? OR remarks LIKE ?)"
+                            .to_string(),
+                    );
+                }
+
+                // 貸出状態フィルター
+                if is_on_loan.is_some() {
+                    where_conditions.push("is_on_loan = ?".to_string());
+                }
+
+                // 廃棄状態フィルター
+                if is_disposed.is_some() {
+                    where_conditions.push("is_disposed = ?".to_string());
+                }
+
+                // コンテナIDフィルター
+                if container_id.is_some() {
+                    where_conditions.push("container_id = ?".to_string());
+                }
+
+                // 保管タイプフィルター
+                if storage_type.is_some() {
+                    where_conditions.push("storage_type = ?".to_string());
+                }
+
+                let where_clause = if where_conditions.is_empty() {
+                    String::new()
+                } else {
+                    format!("WHERE {}", where_conditions.join(" AND "))
+                };
+
+                let query_str = format!(
+                    r#"
+                    SELECT
+                        id, name, label_id, model_number, remarks, purchase_year,
+                        purchase_amount, durability_years, is_depreciation_target,
+                        connection_names, cable_color_pattern, storage_location,
+                        container_id, storage_type, is_on_loan, qr_code_type, is_disposed, image_url,
+                        created_at, updated_at
+                    FROM items
+                    {}
+                    ORDER BY created_at DESC
+                    "#,
+                    where_clause
+                );
+
+                // パラメーターをバインド
+                let mut query = sqlx::query(&query_str);
+
+                // 検索条件
+                if let Some(search_term) = &search {
+                    let search_pattern = format!("%{}%", search_term);
+                    query = query
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern.clone())
+                        .bind(search_pattern);
+                }
+
+                // 貸出状態フィルター
+                if let Some(loan_status) = is_on_loan {
+                    let loan_value = if loan_status { 1i32 } else { 0i32 };
+                    query = query.bind(loan_value);
+                }
+
+                // 廃棄状態フィルター
+                if let Some(disposed_status) = is_disposed {
+                    let disposed_value = if disposed_status { 1i32 } else { 0i32 };
+                    query = query.bind(disposed_value);
+                }
+
+                // コンテナIDフィルター
+                if let Some(container_id_val) = &container_id {
+                    query = query.bind(container_id_val);
+                }
+
+                // 保管タイプフィルター
+                if let Some(storage_type_val) = &storage_type {
+                    query = query.bind(storage_type_val);
+                }
+
+                let rows = query.fetch_all(pool).await?;
+                Ok(rows.into_iter().map(|row| self.row_to_item(row)).collect())
+            }
+        }
+    }
+
     pub async fn update_item(&self, id: Uuid, req: UpdateItemRequest) -> AppResult<Item> {
         match &self.db {
             DatabasePool::Postgres(pool) => {

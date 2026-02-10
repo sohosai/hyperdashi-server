@@ -88,6 +88,7 @@ async fn main() -> anyhow::Result<()> {
             "/items",
             get(handlers::list_items).post(handlers::create_item),
         )
+        .route("/items/csv", get(handlers::export_items_csv))
         .route(
             "/items/:id",
             get(handlers::get_item)
