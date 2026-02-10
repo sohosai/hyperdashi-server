@@ -73,7 +73,7 @@ pub async fn export_items_csv(
     );
     headers.insert(
         header::CONTENT_DISPOSITION,
-        HeaderValue::from_static("attachment; filename=\"items.csv\""),
+        HeaderValue::from_static("attachment; filename=\"item_list.csv\""),
     );
 
     Ok((headers, csv))
@@ -230,75 +230,55 @@ fn csv_escape(value: &str) -> String {
     format!("\"{}\"", escaped)
 }
 
-fn opt_bool_to_string(value: Option<bool>) -> String {
-    match value {
-        Some(true) => "TRUE".to_string(),
-        Some(false) => "FALSE".to_string(),
-        None => "".to_string(),
-    }
-}
-
-fn opt_vec_to_string(value: &Option<Vec<String>>) -> String {
-    value.as_ref().map(|v| v.join(";")).unwrap_or_default()
-}
-
 fn items_to_csv(items: &[Item]) -> String {
-    // NOTE: keep header labels stable because users may import by column name.
+    // dashi互換: dashi-client/src/components/csv/ItemCsvButton.tsx の列・並びに合わせる
     let headers = [
-        "ID",
-        "名称",
-        "ラベルID",
         "型番",
+        "物品名",
+        "個数",
+        "物品詳細",
         "保管場所",
-        "コンテナID",
-        "保管方法",
-        "貸出中",
-        "廃棄済み",
-        "購入年",
-        "購入金額",
-        "耐用年数",
-        "減価償却対象",
-        "接続端子",
-        "ケーブル色",
-        "QR/バーコード種別",
-        "画像URL",
+        "使用用途",
+        "使用時期",
+        "年間必要数",
         "備考",
-        "登録日時",
-        "更新日時",
     ];
 
-    let mut out = String::new();
-    out.push_str(&headers.join(","));
-    out.push_str("\r\n");
+    let mut lines: Vec<String> = Vec::with_capacity(items.len() + 1);
+    lines.push(headers.join(","));
 
     for item in items {
+        let place = item
+            .storage_location
+            .clone()
+            .or_else(|| item.container_id.clone())
+            .unwrap_or_default();
+
         let fields = [
-            item.id.to_string(),
-            item.name.clone(),
-            item.label_id.clone(),
+            // 型番
             item.model_number.clone().unwrap_or_default(),
-            item.storage_location.clone().unwrap_or_default(),
-            item.container_id.clone().unwrap_or_default(),
-            item.storage_type.clone(),
-            opt_bool_to_string(item.is_on_loan),
-            opt_bool_to_string(item.is_disposed),
-            item.purchase_year.map(|v| v.to_string()).unwrap_or_default(),
-            item.purchase_amount.map(|v| v.to_string()).unwrap_or_default(),
-            item.durability_years.map(|v| v.to_string()).unwrap_or_default(),
-            opt_bool_to_string(item.is_depreciation_target),
-            opt_vec_to_string(&item.connection_names),
-            opt_vec_to_string(&item.cable_color_pattern),
-            item.qr_code_type.clone().unwrap_or_default(),
-            item.image_url.clone().unwrap_or_default(),
+            // 物品名
+            item.name.clone(),
+            // 個数
+            "1".to_string(),
+            // 物品詳細
             item.remarks.clone().unwrap_or_default(),
-            item.created_at.to_rfc3339(),
-            item.updated_at.to_rfc3339(),
+            // 保管場所
+            place,
+            // 使用用途
+            "".to_string(),
+            // 使用時期
+            "当日".to_string(),
+            // 年間必要数
+            "1".to_string(),
+            // 備考
+            "".to_string(),
         ];
 
         let escaped_row: Vec<String> = fields.iter().map(|v| csv_escape(v)).collect();
-        out.push_str(&escaped_row.join(","));
-        out.push_str("\r\n");
+        lines.push(escaped_row.join(","));
     }
 
-    out
+    // dashi(exceljs) が LF のみなので揃える
+    lines.join("\n")
 }
