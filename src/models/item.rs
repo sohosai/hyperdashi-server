@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -77,7 +77,8 @@ pub struct UpdateItemRequest {
     #[validate(length(max = 255))]
     pub model_number: Option<String>,
 
-    pub remarks: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_nullable_string")]
+    pub remarks: Option<Option<String>>,
 
     #[validate(range(min = 1900, max = 2100))]
     pub purchase_year: Option<i32>,
@@ -109,10 +110,39 @@ pub struct UpdateItemRequest {
     pub image_url: Option<String>,
 }
 
+fn deserialize_optional_nullable_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(Some)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemsListResponse {
     pub items: Vec<Item>,
     pub total: i64,
     pub page: u32,
     pub per_page: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UpdateItemRequest;
+
+    #[test]
+    fn update_item_request_distinguishes_missing_null_and_string_remarks() {
+        let missing: UpdateItemRequest = serde_json::from_str("{}").unwrap();
+        assert_eq!(missing.remarks, None);
+
+        let null: UpdateItemRequest = serde_json::from_str(r#"{"remarks":null}"#).unwrap();
+        assert_eq!(null.remarks, Some(None));
+
+        let empty: UpdateItemRequest = serde_json::from_str(r#"{"remarks":""}"#).unwrap();
+        assert_eq!(empty.remarks, Some(Some(String::new())));
+
+        let value: UpdateItemRequest = serde_json::from_str(r#"{"remarks":"note"}"#).unwrap();
+        assert_eq!(value.remarks, Some(Some("note".to_string())));
+    }
 }

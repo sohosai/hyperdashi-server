@@ -710,14 +710,34 @@ impl ItemService {
     }
 
     pub async fn update_item(&self, id: Uuid, req: UpdateItemRequest) -> AppResult<Item> {
+        let UpdateItemRequest {
+            name,
+            label_id,
+            model_number,
+            remarks,
+            purchase_year,
+            purchase_amount,
+            durability_years,
+            is_depreciation_target,
+            connection_names,
+            cable_color_pattern,
+            storage_location,
+            container_id,
+            storage_type,
+            is_on_loan: _,
+            qr_code_type,
+            is_disposed: _,
+            image_url,
+        } = req;
+        let remarks = remarks.map(|value| value.unwrap_or_default());
+
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 // まず物品が存在するかチェック
                 let _existing_item = self.get_item(id).await?;
 
                 // JSON配列フィールドをシリアライズ
-                let connection_names_json = req
-                    .connection_names
+                let connection_names_json = connection_names
                     .as_ref()
                     .map(serde_json::to_string)
                     .transpose()
@@ -728,8 +748,7 @@ impl ItemService {
                         ))
                     })?;
 
-                let cable_color_pattern_json = req
-                    .cable_color_pattern
+                let cable_color_pattern_json = cable_color_pattern
                     .as_ref()
                     .map(serde_json::to_string)
                     .transpose()
@@ -739,8 +758,6 @@ impl ItemService {
                             e
                         ))
                     })?;
-
-                let storage_location = req.storage_location;
 
                 let now = chrono::Utc::now();
 
@@ -767,21 +784,21 @@ impl ItemService {
                     "#,
                 )
                 .bind(id)
-                .bind(&req.name)
-                .bind(&req.label_id)
-                .bind(&req.model_number)
-                .bind(&req.remarks)
-                .bind(req.purchase_year)
-                .bind(req.purchase_amount)
-                .bind(req.durability_years)
-                .bind(req.is_depreciation_target)
+                .bind(&name)
+                .bind(&label_id)
+                .bind(&model_number)
+                .bind(&remarks)
+                .bind(purchase_year)
+                .bind(purchase_amount)
+                .bind(durability_years)
+                .bind(is_depreciation_target)
                 .bind(&connection_names_json)
                 .bind(&cable_color_pattern_json)
                 .bind(&storage_location)
-                .bind(&req.container_id)
-                .bind(&req.storage_type)
-                .bind(&req.qr_code_type)
-                .bind(&req.image_url)
+                .bind(&container_id)
+                .bind(&storage_type)
+                .bind(&qr_code_type)
+                .bind(&image_url)
                 .bind(now)
                 .execute(pool)
                 .await?;
@@ -794,8 +811,7 @@ impl ItemService {
                 let _existing_item = self.get_item(id).await?;
 
                 // JSON配列フィールドをシリアライズ
-                let connection_names_json = req
-                    .connection_names
+                let connection_names_json = connection_names
                     .as_ref()
                     .map(serde_json::to_string)
                     .transpose()
@@ -806,8 +822,7 @@ impl ItemService {
                         ))
                     })?;
 
-                let cable_color_pattern_json = req
-                    .cable_color_pattern
+                let cable_color_pattern_json = cable_color_pattern
                     .as_ref()
                     .map(serde_json::to_string)
                     .transpose()
@@ -817,8 +832,6 @@ impl ItemService {
                             e
                         ))
                     })?;
-
-                let storage_location = req.storage_location;
 
                 let now = chrono::Utc::now();
                 let id_str = id.to_string();
@@ -846,21 +859,21 @@ impl ItemService {
                     "#,
                 )
                 .bind(id_str)
-                .bind(req.name)
-                .bind(req.label_id)
-                .bind(req.model_number)
-                .bind(req.remarks)
-                .bind(req.purchase_year)
-                .bind(req.purchase_amount)
-                .bind(req.durability_years)
-                .bind(req.is_depreciation_target)
+                .bind(name)
+                .bind(label_id)
+                .bind(model_number)
+                .bind(remarks)
+                .bind(purchase_year)
+                .bind(purchase_amount)
+                .bind(durability_years)
+                .bind(is_depreciation_target)
                 .bind(connection_names_json)
                 .bind(cable_color_pattern_json)
                 .bind(storage_location)
-                .bind(req.container_id)
-                .bind(req.storage_type)
-                .bind(req.qr_code_type)
-                .bind(req.image_url)
+                .bind(container_id)
+                .bind(storage_type)
+                .bind(qr_code_type)
+                .bind(image_url)
                 .bind(now)
                 .execute(pool)
                 .await?;
