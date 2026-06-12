@@ -241,7 +241,7 @@ impl TagService {
                     SELECT t.id, t.name, t.color, t.description, t.created_at, t.updated_at
                     FROM tags t
                     INNER JOIN item_tags it ON t.id = it.tag_id
-                    WHERE it.item_id = $1
+                    WHERE it.item_id = $1::uuid
                     ORDER BY t.name ASC
                     "#,
                 )
@@ -277,14 +277,14 @@ impl TagService {
         match &self.db {
             DatabasePool::Postgres(pool) => {
                 // Delete existing tags
-                sqlx::query("DELETE FROM item_tags WHERE item_id = $1")
+                sqlx::query("DELETE FROM item_tags WHERE item_id = $1::uuid")
                     .bind(item_id)
                     .execute(pool)
                     .await?;
 
                 // Insert new tags
                 for tag_id in &tag_ids {
-                    sqlx::query("INSERT INTO item_tags (item_id, tag_id) VALUES ($1, $2)")
+                    sqlx::query("INSERT INTO item_tags (item_id, tag_id) VALUES ($1::uuid, $2)")
                         .bind(item_id)
                         .bind(tag_id)
                         .execute(pool)
