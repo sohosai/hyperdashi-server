@@ -2,6 +2,12 @@
 # Debian bookwormベースのRustイメージを使用（実行環境と同じGLIBCバージョン）
 FROM rust:1.83-bookworm AS builder
 
+# Dockerのビルド時にコミットIDを受け取る
+ARG GIT_SHA=unknown
+
+# Rustのコンパイル環境へ渡す
+ENV GIT_SHA=${GIT_SHA}
+
 # GLIBCバージョンを確認（デバッグ用）
 RUN ldd --version | head -n1
 
@@ -16,6 +22,7 @@ COPY . .
 
 # アプリケーションをビルド（オフラインモード）
 ENV SQLX_OFFLINE=true
+
 # リンカーをmoldに設定してビルド時間とメモリ使用量を削減
 RUN apt-get update && apt-get install -y mold && rm -rf /var/lib/apt/lists/*
 ENV RUSTFLAGS="-C link-arg=-fuse-ld=mold"
@@ -38,6 +45,11 @@ RUN ls -lh target/release/hyperdashi-server && \
 
 # 実行ステージ
 FROM debian:bookworm-slim
+
+# Dockerのビルド時にコミットIDを受け取る
+ARG GIT_SHA=unknown
+# DockerイメージのメタデータにコミットIDを保存する
+LABEL org.opencontainers.image.revision=${GIT_SHA}
 
 # GLIBCバージョンを確認（デバッグ用）
 RUN ldd --version | head -n1

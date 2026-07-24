@@ -1,6 +1,7 @@
 use axum::{
     extract::DefaultBodyLimit,
     routing::{get, post},
+    Json,
     Router,
 };
 use std::net::SocketAddr;
@@ -10,6 +11,7 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use serde::Serialize;
 
 mod config;
 mod db;
@@ -34,6 +36,19 @@ pub type AppState = (
     Arc<ConnectorService>,
     Arc<TagService>,
 );
+
+#[derive(Serialize)]
+struct VersionResponse {
+    version: &'static str,
+    revision: &'static str,
+}
+
+async fn version() -> Json<VersionResponse> {
+    Json(VersionResponse {
+        version: env!("CARGO_PKG_VERSION"),
+        revision: option_env!("GIT_SHA").unwrap_or("local"),
+    })
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -210,6 +225,7 @@ async fn main() -> anyhow::Result<()> {
     let mut app = Router::new()
         .route("/", get(root))
         .route("/api/v1/health", get(health_check))
+        .route("/api/v1/version", get(version))
         .nest("/api/v1", api_routes)
         // ファイルアップロード用のボディサイズ制限を設定
         .layer(DefaultBodyLimit::max(
