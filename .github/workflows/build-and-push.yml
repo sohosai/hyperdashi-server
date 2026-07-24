@@ -59,5 +59,6 @@ jobs:
         platforms: linux/amd64
         build-args: |
           BUILDKIT_INLINE_CACHE=1
+          GIT_SHA=${{ github.sha }}
         outputs: type=image,push=true
       timeout-minutes: 60
