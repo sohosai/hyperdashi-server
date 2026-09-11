@@ -154,6 +154,13 @@ pub async fn get_connection_names_suggestions(
     Ok(Json(SuggestionsResponse { suggestions }))
 }
 
+pub async fn get_item_names_suggestions(
+    State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
+) -> AppResult<Json<SuggestionsResponse>> {
+    let suggestions = item_service.get_item_names_suggestions().await?;
+    Ok(Json(SuggestionsResponse { suggestions }))
+}
+
 pub async fn get_storage_locations_suggestions(
     State((_storage_service, _cable_color_service, item_service, _loan_service, _container_service, _connector_service, _tag_service)): State<crate::AppState>,
 ) -> AppResult<Json<SuggestionsResponse>> {
