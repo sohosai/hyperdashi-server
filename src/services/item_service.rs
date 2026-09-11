@@ -1114,6 +1114,29 @@ impl ItemService {
         }
     }
 
+    pub async fn get_item_names_suggestions(&self) -> AppResult<Vec<String>> {
+        match &self.db {
+            DatabasePool::Postgres(pool) => {
+                let rows = sqlx::query(
+                    "SELECT DISTINCT name FROM items WHERE TRIM(name) != '' ORDER BY name ASC",
+                )
+                .fetch_all(pool)
+                .await?;
+
+                Ok(rows.into_iter().map(|row| row.get("name")).collect())
+            }
+            DatabasePool::Sqlite(pool) => {
+                let rows = sqlx::query(
+                    "SELECT DISTINCT name FROM items WHERE TRIM(name) != '' ORDER BY name ASC",
+                )
+                .fetch_all(pool)
+                .await?;
+
+                Ok(rows.into_iter().map(|row| row.get("name")).collect())
+            }
+        }
+    }
+
     pub async fn get_storage_locations_suggestions(&self) -> AppResult<Vec<String>> {
         match &self.db {
             DatabasePool::Postgres(pool) => {

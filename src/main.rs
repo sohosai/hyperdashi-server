@@ -122,6 +122,10 @@ async fn main() -> anyhow::Result<()> {
             get(handlers::get_connection_names_suggestions),
         )
         .route(
+            "/items/suggestions/names",
+            get(handlers::get_item_names_suggestions),
+        )
+        .route(
             "/items/suggestions/storage_locations",
             get(handlers::get_storage_locations_suggestions),
         )
