@@ -21,6 +21,7 @@ pub struct ItemsQuery {
     pub is_disposed: Option<bool>,
     pub container_id: Option<String>,
     pub storage_type: Option<String>,
+    pub connection_names: Option<String>,
 }
 
 fn default_page() -> u32 {
@@ -44,6 +45,7 @@ pub async fn list_items(
             params.is_disposed,
             params.container_id,
             params.storage_type,
+            params.connection_names,
         )
         .await?;
 
@@ -61,6 +63,7 @@ pub async fn export_items_csv(
             params.is_disposed,
             params.container_id,
             params.storage_type,
+            params.connection_names,
         )
         .await?;
 
