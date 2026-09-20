@@ -215,6 +215,7 @@ impl ItemService {
         is_disposed: Option<bool>,
         container_id: Option<String>,
         storage_type: Option<String>,
+        connection_names: Option<String>,
     ) -> AppResult<ItemsListResponse> {
         let offset = ((page - 1) * per_page) as i64;
         let limit = per_page as i64;
@@ -252,6 +253,11 @@ impl ItemService {
                 // 保管タイプフィルター
                 if storage_type.is_some() {
                     where_conditions.push(format!("storage_type = ${}", param_index));
+                    param_index += 1;
+                }
+
+                if connection_names.is_some() {
+                    where_conditions.push(format!("connection_names ILIKE ${}", param_index));
                     param_index += 1;
                 }
 
@@ -325,6 +331,12 @@ impl ItemService {
                     count_query = count_query.bind(storage_type_val);
                 }
 
+                if let Some(connection_names_val) = &connection_names {
+                    let connection_pattern = format!("%{}%", connection_names_val);
+                    query = query.bind(connection_pattern.clone());
+                    count_query = count_query.bind(connection_pattern);
+                }
+
                 // LIMIT と OFFSET
                 query = query.bind(limit).bind(offset);
 
@@ -376,6 +388,10 @@ impl ItemService {
                     where_conditions.push("storage_type = ?".to_string());
                 }
 
+                if connection_names.is_some() {
+                    where_conditions.push("connection_names LIKE ?".to_string());
+                }
+
                 let where_clause = if where_conditions.is_empty() {
                     String::new()
                 } else {
@@ -388,6 +404,7 @@ impl ItemService {
                     && is_disposed.is_none()
                     && container_id.is_none()
                     && storage_type.is_none()
+                    && connection_names.is_none()
                 {
                     // フィルターなし
                     let rows = sqlx::query(
@@ -483,6 +500,12 @@ impl ItemService {
                         count_query = count_query.bind(storage_type_val);
                     }
 
+                    if let Some(connection_names_val) = &connection_names {
+                        let connection_pattern = format!("%{}%", connection_names_val);
+                        query = query.bind(connection_pattern.clone());
+                        count_query = count_query.bind(connection_pattern);
+                    }
+
                     // LIMIT/OFFSETをバインド
                     query = query.bind(limit).bind(offset);
 
@@ -513,6 +536,7 @@ impl ItemService {
         is_disposed: Option<bool>,
         container_id: Option<String>,
         storage_type: Option<String>,
+        connection_names: Option<String>,
     ) -> AppResult<Vec<Item>> {
         match &self.db {
             DatabasePool::Postgres(pool) => {
@@ -553,6 +577,11 @@ impl ItemService {
                 // 保管タイプフィルター
                 if storage_type.is_some() {
                     where_conditions.push(format!("storage_type = ${}", param_index));
+                    param_index += 1;
+                }
+
+                if connection_names.is_some() {
+                    where_conditions.push(format!("connection_names ILIKE ${}", param_index));
                 }
 
                 let where_clause = if where_conditions.is_empty() {
@@ -609,6 +638,10 @@ impl ItemService {
                     query = query.bind(storage_type_val);
                 }
 
+                if let Some(connection_names_val) = &connection_names {
+                    query = query.bind(format!("%{}%", connection_names_val));
+                }
+
                 let rows = query.fetch_all(pool).await?;
                 Ok(rows
                     .into_iter()
@@ -645,6 +678,10 @@ impl ItemService {
                 // 保管タイプフィルター
                 if storage_type.is_some() {
                     where_conditions.push("storage_type = ?".to_string());
+                }
+
+                if connection_names.is_some() {
+                    where_conditions.push("connection_names LIKE ?".to_string());
                 }
 
                 let where_clause = if where_conditions.is_empty() {
@@ -701,6 +738,10 @@ impl ItemService {
                 // 保管タイプフィルター
                 if let Some(storage_type_val) = &storage_type {
                     query = query.bind(storage_type_val);
+                }
+
+                if let Some(connection_names_val) = &connection_names {
+                    query = query.bind(format!("%{}%", connection_names_val));
                 }
 
                 let rows = query.fetch_all(pool).await?;
